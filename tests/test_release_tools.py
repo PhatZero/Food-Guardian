@@ -26,6 +26,12 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(version, "1.0b1")
         self.assertIn(Path("Core.lua"), names)
 
+    def test_stable_version_manifest(self):
+        toc = self.addon / "FoodGuardian.toc"
+        toc.write_text(toc.read_text(encoding="utf-8").replace("1.0b1", "1.0.0"), encoding="utf-8")
+        version, _ = build.validate_manifest(self.addon)
+        self.assertEqual(version, "1.0.0")
+
     def test_missing_lua_rejected(self):
         (self.addon / "Core.lua").unlink()
         with self.assertRaisesRegex(ValueError, "Missing TOC file"):

@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: |cffffce75Food|r |cfffff5dbGuardian|r
+## Notes: Food, Cozy Sleeping Bag, Camp Benefits, and Camp Tent tracker for WoW Forever.
+## Author: PhatZero
+## Version: 1.0.0
+## SavedVariables: FoodGuardianDB
+## SavedVariablesPerCharacter: FoodGuardianCharDB
+## X-Category: Buffs
+## X-Client: WoW Forever 1.60.1
+## IconTexture: Interface\AddOns\FoodGuardian\Textures\GuardianShield.tga
+
+Core.lua
+Auras.lua
+Inventory.lua
+UI.lua
+Settings.lua
+Minimap.lua

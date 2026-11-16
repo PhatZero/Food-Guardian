@@ -12,8 +12,8 @@ archive=$1
 toc=$(unzip -p "$archive" "FoodGuardian/FoodGuardian.toc" | tr -d '\r')
 interface=$(sed -n 's/^## Interface: //p' <<< "$toc")
 version=$(sed -n 's/^## Version: //p' <<< "$toc")
-[[ "$interface" == "16001" && "$version" =~ ^[0-9]+\.[0-9]+b[1-9][0-9]*$ ]] || {
-  echo "Expected a valid Forever 1.60.1 beta TOC" >&2; exit 1;
+[[ "$interface" == "16001" && "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+|[0-9]+\.[0-9]+b[1-9][0-9]*)$ ]] || {
+  echo "Expected a valid Forever 1.60.1 release TOC" >&2; exit 1;
 }
 
 api=https://wow.curseforge.com/api
@@ -23,8 +23,10 @@ version_id=$(jq -er '[.[] | select(.name == "1.60.1")] |
   if length == 1 and (.[0].id | type) == "number" then .[0].id
   else error("Expected exactly one CurseForge Forever 1.60.1 game version") end' <<< "$versions")
 
-metadata=$(jq -n --arg notes "$CHANGELOG" --arg version "$version" --argjson id "$version_id" \
-  '{changelog: $notes, changelogType: "markdown", releaseType: "beta",
+release_type=beta
+if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then release_type=release; fi
+metadata=$(jq -n --arg notes "$CHANGELOG" --arg version "$version" --arg release_type "$release_type" --argjson id "$version_id" \
+  '{changelog: $notes, changelogType: "markdown", releaseType: $release_type,
     displayName: ("Food Guardian " + $version + " (Forever)"), gameVersions: [$id]}')
 
 response=$(curl --fail-with-body --silent --show-error \

@@ -62,6 +62,9 @@ jobs:
             exit 1
           fi
           for file in "${lua_files[@]}"; do luac5.1 -p "$file"; done
+      - name: Run Lua 5.1 game-runtime mock tests
+        if: steps.detect.outputs.present == 'true'
+        run: lua5.1 tests/wow_mock.lua addon
       - name: Build installable Food Guardian ZIP
         if: steps.detect.outputs.present == 'true'
         run: python3 scripts/build.py

@@ -1,21 +1,24 @@
 # Food Guardian
 
-**Food Guardian** is an upcoming standalone World of Warcraft: Forever addon for tracking food buffs, sleeping-bag benefits, and campfire-related effects in a compact movable window with configurable low-duration warnings.
+A standalone World of Warcraft: Forever 1.60.1 addon for food, sleeping-bag and campfire buff tracking.
 
-> **Status:** Repository and release automation setup only. Addon gameplay code has **not** been added and no build is ready to publish.
+**Version 1.0.0** · [Release notes](CHANGELOG.md)
 
-## Development
+## Features
+- Full Window, Compact Bar, and Icon Mode.
+- Well Fed, Well-Rested (Cozy Sleeping Bag), Camp Benefits countdowns.
+- Sleeping Bag stacks and cooldown, Camp Tent / Boosted Rest lockout.
+- Warnings with optional sound, minimap shield, movement/scale/lock controls and settings.
 
-- `main` is the release source.
-- Changes should enter through pull requests with validation checks.
-- Installable archives will contain `FoodGuardian/FoodGuardian.toc` and supporting files.
-- The initial game target follows WayForth's WoW Forever `1.60.1` client, interface `16001`.
-- Beta tags use `forever-1.0b1`, `forever-1.0b2`, etc.
+## Commands
+- `/fg`: toggle window
+- `/fg settings`: options
+- `/fg mode full`, `/fg mode compact`, `/fg mode icons`
+- `/fg demo healthy`, `/fg demo warning`, `/fg demo off`
+- `/fg debug`: diagnostics
 
-## Release and CurseForge preparation
+## Installation
+Extract the official ZIP under WoW Forever's `Interface/AddOns/` directory so that `FoodGuardian/FoodGuardian.toc` exists, then restart.
 
-The GitHub Actions pipeline validates Lua 5.1, packages an addon ZIP, publishes GitHub prereleases, and optionally uploads betas to CurseForge.
-
-**Nothing uploads to CurseForge until the project exists and publishing is enabled.**
-
-See [setup instructions](docs/SETUP.md) and [release procedure](docs/RELEASING.md). The `addon/` folder will be introduced once implementation begins; its absence is intentional.
+## Release pipeline
+Source is stored in `addon/` and GitHub Actions packages the same installable `FoodGuardian/` structure. CI runs Lua 5.1 syntax and mocked runtime tests. GitHub releases can optionally upload to CurseForge when Actions credentials are configured. See [publishing instructions](docs/RELEASING.md).

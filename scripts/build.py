@@ -10,7 +10,7 @@ ADDON = ROOT / "addon"
 TOC = ADDON / "FoodGuardian.toc"
 DIST = ROOT / "dist"
 SUPPORTED = {".toc", ".lua", ".xml", ".tga", ".blp", ".ttf", ".otf"}
-VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+b[1-9][0-9]*$")
+VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+(?:\.[0-9]+|b[1-9][0-9]*)$")
 
 
 def manifest_value(text: str, field: str) -> str:
@@ -31,7 +31,7 @@ def validate_manifest(addon: Path = ADDON):
         raise ValueError("Expected WoW Forever 1.60.1 interface 16001")
     version = manifest_value(contents, "Version")
     if not VERSION_RE.fullmatch(version):
-        raise ValueError(f"Expected a beta version such as 1.0b1; got {version!r}")
+        raise ValueError(f"Expected a release version such as 1.0.0 or beta 1.0b1; got {version!r}")
     entries = []
     for line in contents.splitlines():
         line = line.strip()

@@ -1,4 +1,4 @@
-name: Release Food Guardian beta on merge
+name: Release Food Guardian on merge
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ jobs:
   publish:
     if: >-
       github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.title, 'Release beta:')
+      (startsWith(github.event.pull_request.title, 'Release beta:') || startsWith(github.event.pull_request.title, 'Release:'))
     uses: ./.github/workflows/release.yml
     permissions:
       contents: write
