@@ -1,0 +1,84 @@
+name: Publish Food Guardian to CurseForge
+
+# Upload a ZIP from an existing, validated GitHub release.
+# No addon code is built or changed, and no new GitHub release is created.
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag (blank = latest stable release)
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: food-guardian-curseforge-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Upload tested GitHub ZIP to CurseForge
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout upload script
+        uses: actions/checkout@v4
+
+      - name: Confirm Food Guardian upload credentials
+        shell: bash
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          [[ -n "$CURSEFORGE_TOKEN" ]] || {
+            echo 'Missing GitHub Actions secret CURSEFORGE_TOKEN' >&2; exit 1;
+          }
+          [[ "$CURSEFORGE_PROJECT_ID" == '1810129' ]] || {
+            echo 'Set CURSEFORGE_PROJECT_ID to Food Guardian project 1810129' >&2; exit 1;
+          }
+
+      - name: Download original validated GitHub release ZIP
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          tag="$REQUESTED_TAG"
+          if [[ -z "$tag" ]]; then
+            tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
+          fi
+          [[ "$tag" =~ ^forever-([0-9]+\.[0-9]+\.[0-9]+|[0-9]+\.[0-9]+b[1-9][0-9]*)$ ]] || {
+            echo "Invalid Food Guardian release tag: $tag" >&2; exit 1;
+          }
+          version="${tag#forever-}"
+          asset="FoodGuardian-Forever-$version.zip"
+          mkdir -p dist
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir dist
+          [[ -f "dist/$asset" ]] || {
+            echo "Expected tested release asset dist/$asset" >&2; exit 1;
+          }
+          unzip -tqq "dist/$asset"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json body --jq '.body' > release-notes.md
+          [[ -s release-notes.md ]] || {
+            echo 'Release notes are required for CurseForge upload' >&2; exit 1;
+          }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Using tested GitHub release $tag and ZIP $asset"
+
+      - name: Publish existing release to CurseForge
+        shell: bash
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          export CHANGELOG
+          CHANGELOG=$(cat release-notes.md)
+          bash scripts/upload-forever.sh "dist/FoodGuardian-Forever-$VERSION.zip"
