@@ -40,7 +40,7 @@ jobs:
         shell: bash
         env:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          CURSEFORGE_PROJECT_ID: '1810129'
         run: |
           set -euo pipefail
           [[ -n "$CURSEFORGE_TOKEN" ]] || {
@@ -64,6 +64,10 @@ jobs:
           if [[ "$EVENT_NAME" == 'create' ]]; then
             # A branch can only upload the exact already-released tag in its name.
             tag="${CREATED_REF#curseforge-publish/}"
+            # Retry branches (e.g. forever-1.0.0-retry1) use the original version.
+            if [[ "$tag" =~ ^(forever-[0-9]+\.[0-9]+\.[0-9]+)-retry[1-9][0-9]*$ ]]; then
+              tag="${BASH_REMATCH[1]}"
+            fi
           fi
           if [[ -z "$tag" ]]; then
             tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
@@ -90,7 +94,7 @@ jobs:
         shell: bash
         env:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          CURSEFORGE_PROJECT_ID: '1810129'
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
