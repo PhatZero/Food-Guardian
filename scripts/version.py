@@ -9,7 +9,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 TOC = ROOT / "addon" / "FoodGuardian.toc"
 PREFIX = "forever-"
-VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+b[1-9][0-9]*$")
+VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+(?:\.[0-9]+|b[1-9][0-9]*)$")
 
 
 def git(*args):
@@ -21,7 +21,7 @@ def current_version():
         raise FileNotFoundError("No addon TOC yet. Implement the addon before releasing.")
     match = re.search(r"^## Version: (.+?)\s*$", TOC.read_text(encoding="utf-8-sig"), re.M)
     if not match or not VERSION_RE.fullmatch(match.group(1)):
-        raise ValueError("The TOC needs a beta version such as 1.0b1")
+        raise ValueError("The TOC needs a version such as 1.0.0 or 1.0b1")
     return match.group(1)
 
 
@@ -33,6 +33,8 @@ def select():
             raise ValueError(f"Invalid release tag: {tag}")
         return tag.removeprefix(PREFIX)
     initial = current_version()
+    if "b" not in initial:
+        return initial
     series = initial.split("b", 1)[0]
     pattern = re.compile(rf"^{PREFIX}{re.escape(series)}b([1-9][0-9]*)$")
     tags = git("tag", "--list", f"{PREFIX}{series}b*")
@@ -42,10 +44,9 @@ def select():
     number = max(at_head) if at_head else max(numbered.values(), default=0) + 1
     return f"{series}b{number}"
 
-
 def stamp(version):
     if not VERSION_RE.fullmatch(version):
-        raise ValueError(f"Invalid beta version: {version}")
+        raise ValueError(f"Invalid release version: {version}")
     source = TOC.read_text(encoding="utf-8")
     output, count = re.subn(r"^## Version: .+$", f"## Version: {version}", source, flags=re.M)
     if count != 1:

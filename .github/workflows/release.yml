@@ -2,7 +2,7 @@ name: Release Food Guardian Forever
 
 on:
   push:
-    tags: ['forever-*b*']
+    tags: ['forever-*']
   workflow_call:
     inputs:
       changelog:
@@ -11,7 +11,7 @@ on:
         type: string
         default: ''
       curseforge:
-        description: Also upload this beta to CurseForge
+        description: Also upload this release to CurseForge
         required: false
         type: boolean
         default: false
@@ -23,7 +23,7 @@ on:
         type: string
         default: ''
       curseforge:
-        description: Also upload the beta to CurseForge
+        description: Also upload the release to CurseForge
         type: boolean
         default: false
 
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Select beta version
+      - name: Select release version
         id: select
         shell: bash
         run: |
@@ -71,7 +71,7 @@ jobs:
         with:
           name: FoodGuardian-Forever
           path: dist
-      - name: Publish tested ZIP as GitHub beta prerelease
+      - name: Publish tested ZIP as GitHub release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -116,8 +116,10 @@ jobs:
               printf '%s\n' "$CHANGELOG" > "$RUNNER_TEMP/notes.md"
               notes=(--notes-file "$RUNNER_TEMP/notes.md")
             fi
+            release_flags=()
+            if [[ "$version" == *b* ]]; then release_flags+=(--prerelease); fi
             gh release create "$tag" "$archive" --target "$GITHUB_SHA" \
-              --prerelease --title "Food Guardian $version (Forever)" "${notes[@]}"
+              "${release_flags[@]}" --title "Food Guardian $version (Forever)" "${notes[@]}"
           fi
       - name: Submit tested ZIP to CurseForge
         if: inputs.curseforge || (github.event_name == 'push' && vars.CURSEFORGE_PUBLISH_TAGS == 'true')

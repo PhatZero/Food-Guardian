@@ -1,27 +1,15 @@
-# Food Guardian release process
+# Food Guardian Releases
 
-## Versioning
+- Stable version: `1.0.0` (tag `forever-1.0.0`).
+- Beta pattern: `1.0b1` (tag `forever-1.0b1`).
+- Installable archive: `FoodGuardian-Forever-<version>.zip`, root folder `FoodGuardian/`.
 
-- Beta sequence: `1.0b1`, `1.0b2`, etc.
-- Git tags: `forever-1.0b1`, `forever-1.0b2`, etc.
-- Downloadable ZIP: `FoodGuardian-Forever-1.0b1.zip`.
-- ZIP root: `FoodGuardian/` containing `FoodGuardian.toc` and referenced Lua/XML files.
+## Publishing
+1. Create a release PR to `main` and require passing CI.
+2. Title stable release PRs `Release: Food Guardian 1.0.0`. Put Markdown player-facing release notes in the PR body.
+3. Squash-merge the PR to trigger GitHub release publishing. Stable releases are not GitHub prereleases.
+4. Automatic CurseForge uploads require GitHub Actions secret `CURSEFORGE_TOKEN`, variable `CURSEFORGE_PROJECT_ID`, and opt-in variable `CURSEFORGE_AUTO_PUBLISH=true`.
+5. The CurseForge project ID is **1810129** (Food Guardian, not WayForth). Upload as type **release** for stable builds targeting WoW Forever **1.60.1**, with interface **16001**.
+6. A manual upload to the CurseForge project using the resulting GitHub release ZIP is also supported.
 
-## Normal development
-
-1. Create a feature branch and pull request into `main`.
-2. Validation checks bootstrap tooling and, once present, Lua 5.1 syntax and the installable ZIP.
-3. Squash-merge approved changes into `main`.
-4. Gameplay releases are **not possible** until `addon/FoodGuardian.toc` and actual addon files exist; the release workflow intentionally fails closed when missing.
-
-## Release options
-
-- **Manual:** Actions → **Release Food Guardian Forever** → Run workflow. Supply formatted release notes and explicitly choose whether to submit to CurseForge.
-- **Release PR merge:** Merge a PR with a title starting `Release beta:`. The PR body becomes its release notes. It will publish to GitHub; CurseForge is opt-in using `CURSEFORGE_AUTO_PUBLISH=true`.
-- **Tag:** Push a valid `forever-…bN` tag. Tags publish a GitHub prerelease; CurseForge publishing needs `CURSEFORGE_PUBLISH_TAGS=true`.
-
-The release job selects/stamps a beta version in the CI checkout, reruns validation, creates a GitHub prerelease with the tested ZIP and optionally submits that same ZIP to CurseForge. GitHub tags/releases do not change the checked-in TOC version. The upload script explicitly verifies the TOC game interface and obtains CurseForge's version ID at publish time.
-
-## Before submitting to CurseForge
-
-Confirm the addon works in-game in WoW Forever, ZIP installs in the correct addon folder, available game version matches the client, release notes are player-facing Markdown, and the project ID/token are set in this repository.
+Do not publish a build unless the same source has passed Lua 5.1 parsing, mocked runtime tests, package integrity checks, and in-game acceptance testing.

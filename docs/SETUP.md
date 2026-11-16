@@ -13,7 +13,7 @@ The GitHub connector used to bootstrap this repository does **not** expose write
 
 ## CurseForge settings to configure later
 
-When a separate Food Guardian CurseForge project exists, open **Settings → Secrets and variables → Actions** in *this repository* and configure:
+For Food Guardian CurseForge project **1810129**, open **Settings → Secrets and variables → Actions** in *this repository* and configure:
 
 - **Repository secret** `CURSEFORGE_TOKEN`: the API token that may upload files to the Food Guardian project. Never commit or paste this token into an issue.
 - **Repository variable** `CURSEFORGE_PROJECT_ID`: Food Guardian's own numeric CurseForge project ID, **not** WayForth's.
