@@ -1,0 +1,75 @@
+name: Validate & Package Food Guardian
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: Optional CI-only beta version to stamp into the TOC
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate, test and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run release tooling tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Discover addon files
+        id: detect
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ -f addon/FoodGuardian.toc ]]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          elif [[ -n "$RELEASE_VERSION" ]]; then
+            echo 'Release rejected: no addon manifest exists yet.' >&2
+            exit 1
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo 'Bootstrap checks passed; no gameplay addon is available to package.'
+          fi
+      - name: Stamp release version into CI checkout
+        if: steps.detect.outputs.present == 'true' && inputs.version != ''
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python3 scripts/version.py stamp "$VERSION"
+      - name: Install Lua 5.1
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lua5.1
+      - name: Validate Lua 5.1 syntax
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          mapfile -d '' lua_files < <(find addon -type f -name '*.lua' -print0)
+          if (( ${#lua_files[@]} == 0 )); then
+            echo 'Addon has no Lua source files' >&2
+            exit 1
+          fi
+          for file in "${lua_files[@]}"; do luac5.1 -p "$file"; done
+      - name: Build installable Food Guardian ZIP
+        if: steps.detect.outputs.present == 'true'
+        run: python3 scripts/build.py
+      - name: Upload tested addon preview ZIP
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: FoodGuardian-Forever
+          path: dist/FoodGuardian-Forever-*.zip
+          if-no-files-found: error
+          retention-days: 14

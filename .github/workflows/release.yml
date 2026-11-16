@@ -1,0 +1,137 @@
+name: Release Food Guardian Forever
+
+on:
+  push:
+    tags: ['forever-*b*']
+  workflow_call:
+    inputs:
+      changelog:
+        description: Player-facing Markdown release notes
+        required: false
+        type: string
+        default: ''
+      curseforge:
+        description: Also upload this beta to CurseForge
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      changelog:
+        description: Player-facing Markdown release notes
+        required: false
+        type: string
+        default: ''
+      curseforge:
+        description: Also upload the beta to CurseForge
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: food-guardian-forever-release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      number: ${{ steps.select.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Select beta version
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(python3 scripts/version.py select)
+          [[ -n "$version" ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  validate:
+    needs: version
+    uses: ./.github/workflows/validate.yml
+    with:
+      version: ${{ needs.version.outputs.number }}
+
+  publish:
+    needs: [version, validate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: FoodGuardian-Forever
+          path: dist
+      - name: Publish tested ZIP as GitHub beta prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGELOG: ${{ inputs.changelog }}
+          EXPECTED_VERSION: ${{ needs.version.outputs.number }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          archives=(dist/FoodGuardian-Forever-*.zip)
+          [[ ${#archives[@]} == 1 && -f "${archives[0]}" ]] || {
+            echo 'Expected exactly one validated addon ZIP' >&2; exit 1;
+          }
+          archive="${archives[0]}"
+          version=$(unzip -p "$archive" FoodGuardian/FoodGuardian.toc |
+            tr -d '\r' | sed -n 's/^## Version: //p')
+          [[ "$version" == "$EXPECTED_VERSION" ]] || {
+            echo 'Validated ZIP has an unexpected version' >&2; exit 1;
+          }
+          tag="forever-$version"
+
+          if git ls-remote --exit-code origin "refs/tags/$tag" >/dev/null; then
+            git fetch -q origin "refs/tags/$tag:refs/tags/$tag"
+            [[ "$(git rev-list -n 1 "$tag")" == "$GITHUB_SHA" ]] || {
+              echo "Existing release tag points to another commit" >&2; exit 1;
+            }
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            existing=$(mktemp -d)
+            if gh release view "$tag" --json assets --jq '.assets[].name' |
+              grep -Fxq "$(basename "$archive")"; then
+              gh release download "$tag" --pattern "$(basename "$archive")" --dir "$existing"
+              mkdir -p "$existing/current" "$existing/released"
+              unzip -q "$archive" -d "$existing/current"
+              unzip -q "$existing/$(basename "$archive")" -d "$existing/released"
+              diff -qr "$existing/current" "$existing/released"
+            else
+              gh release upload "$tag" "$archive"
+            fi
+          else
+            notes=(--generate-notes)
+            if [[ -n "$CHANGELOG" ]]; then
+              printf '%s\n' "$CHANGELOG" > "$RUNNER_TEMP/notes.md"
+              notes=(--notes-file "$RUNNER_TEMP/notes.md")
+            fi
+            gh release create "$tag" "$archive" --target "$GITHUB_SHA" \
+              --prerelease --title "Food Guardian $version (Forever)" "${notes[@]}"
+          fi
+      - name: Submit tested ZIP to CurseForge
+        if: inputs.curseforge || (github.event_name == 'push' && vars.CURSEFORGE_PUBLISH_TAGS == 'true')
+        shell: bash
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          CHANGELOG: ${{ inputs.changelog }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: forever-${{ needs.version.outputs.number }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$CHANGELOG" ]]; then
+            CHANGELOG=$(gh release view "$RELEASE_TAG" --json body --jq .body)
+            export CHANGELOG
+          fi
+          bash scripts/upload-forever.sh dist/FoodGuardian-Forever-*.zip

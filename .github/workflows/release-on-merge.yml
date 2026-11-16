@@ -1,0 +1,21 @@
+name: Release Food Guardian beta on merge
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: >-
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.title, 'Release beta:')
+    uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+    with:
+      changelog: ${{ github.event.pull_request.body }}
+      curseforge: ${{ vars.CURSEFORGE_AUTO_PUBLISH == 'true' }}
+    secrets: inherit
