@@ -17,5 +17,5 @@ jobs:
       contents: write
     with:
       changelog: ${{ github.event.pull_request.body }}
-      curseforge: ${{ vars.CURSEFORGE_AUTO_PUBLISH == 'true' }}
+      curseforge: true
     secrets: inherit
