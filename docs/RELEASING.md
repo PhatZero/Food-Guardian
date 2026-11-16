@@ -4,33 +4,36 @@
 - Beta pattern: `1.0b1` (tag `forever-1.0b1`).
 - Installable archive: `FoodGuardian-Forever-<version>.zip`, root folder `FoodGuardian/`.
 
-## Publishing to CurseForge (preferred)
+## Standard release path (matches WayForth)
 
-**"Publish to CurseForge" means run GitHub Actions, not manually upload a local ZIP.**
+**"Publish to CurseForge" means use the GitHub Actions workflow, never manually upload a local ZIP.**
 
-Use the dedicated **Publish Food Guardian to CurseForge** workflow at:
+1. Finish gameplay development and in-game QA on a branch, with passing CI.
+2. Open a PR to `main` titled `Release: Food Guardian <version>` for stable releases or `Release beta: Food Guardian <version>` for betas. Put formatted Markdown release notes in the PR body.
+3. Squash-merge the approved release PR. `.github/workflows/release-on-merge.yml` calls `release.yml` with `curseforge: true`.
+4. GitHub Actions selects/stamps the version, validates all Lua 5.1 files, runs game-runtime mock tests, and packages the installable ZIP.
+5. The workflow creates or checks the GitHub release and submits **the same validated ZIP** and Markdown release notes to CurseForge through `scripts/upload-forever.sh`. Stable versions use CurseForge type **release**; beta versions use **beta**.
+
+**Required GitHub Actions configuration:** secret `CURSEFORGE_TOKEN` and variable `CURSEFORGE_PROJECT_ID=1810129` in **Settings → Secrets and variables → Actions**. These settings must be configured in Food Guardian, not inherited from WayForth. If missing, CurseForge submission fails and must be retried after configuring them.
+
+## Publish an existing GitHub release to CurseForge
+
+For existing versions already released on GitHub (such as `forever-1.0.0`), use the dedicated **Publish Food Guardian to CurseForge** workflow:
 https://github.com/PhatZero/Food-Guardian/actions/workflows/publish-curseforge.yml
 
-1. Confirm the stable or beta version already exists as a **GitHub release** with a validated ZIP attached.
-2. Go to **Actions → Publish Food Guardian to CurseForge → Run workflow**, selecting `main`.
-3. Leave **Existing release tag** empty to publish the **latest stable GitHub release**, or specify an exact tag such as `forever-1.0.0` or `forever-1.0b1`.
-4. The job downloads **that exact existing tested ZIP**, rechecks its archive integrity, uses the GitHub release notes as CurseForge Markdown, and calls `scripts/upload-forever.sh`.
-5. The upload script selects CurseForge **Release** for stable semver or **Beta** for beta versions, targets WoW Forever **1.60.1** (interface **16001**), and reports CurseForge's returned file ID.
+1. Open **Actions → Publish Food Guardian to CurseForge → Run workflow**.
+2. Choose `main`. Leave **Existing release tag** empty for the latest stable GitHub release, or enter an exact tag such as `forever-1.0.0` or `forever-1.0b1`.
+3. The workflow downloads that **existing tested ZIP** from the GitHub release, checks archive integrity, reads GitHub Markdown release notes, and uploads it to project `1810129` with the correct Forever game version mapping.
 
-**Required GitHub Actions configuration:** secret `CURSEFORGE_TOKEN` and variable `CURSEFORGE_PROJECT_ID=1810129` in **Settings → Secrets and variables → Actions**. These are **repository-specific**; do not copy WayForth's project ID. The workflow fails before upload if either is missing or the project ID is not Food Guardian's.
+This on-demand workflow does not make a new GitHub release, commit addon code, or rebuild the archive. Do not run it for an already uploaded version unless an earlier upload failed; duplicate submissions may be rejected.
 
-The workflow deliberately performs **no source modifications**, **no build**, and **no GitHub release creation**. It may be run for an existing release after that release has been approved. CurseForge may reject duplicate submissions of the same artifact; do not run the same tag twice unnecessarily.
+## Publishing safeguards
 
-## Creating a new GitHub release
+- Target game: WoW Forever **1.60.1**, interface **16001** (verify against the game client before future releases).
+- Install directory: `Interface/AddOns/FoodGuardian/`.
+- No release should be shipped without source validation, package checks, and in-game testing.
+- Do not place CurseForge credentials in repository source, issues, or release notes.
 
-1. Develop and QA code in a branch, run CI, and open a release PR into `main`.
-2. Title stable release PRs `Release: Food Guardian 1.0.0` and place Markdown player-facing release notes in the PR body.
-3. Merge the release PR. The existing `release-on-merge.yml` and `release.yml` publish a tested ZIP to a GitHub release.
-4. After the GitHub release exists, use the **Publish Food Guardian to CurseForge** workflow above.
-5. **Optional:** If `CURSEFORGE_AUTO_PUBLISH=true` is configured, a release PR merge may upload to CurseForge within the release workflow too. Prefer one publishing mechanism per version to avoid duplicates.
+## GitHub connector limitation
 
-Do not publish unless the same source has passed Lua 5.1 parsing, mocked runtime tests, package integrity checks, and in-game acceptance testing.
-
-## Permissions and limitations
-
-The connected GitHub integration can manage repository source files but does not currently expose **workflow-dispatch** or **Actions secret / variable write** operations. If these actions are unavailable, the workflow must be triggered from GitHub's Actions UI; do not claim the upload occurred until the run reports success and CurseForge returns a file ID.
+The connected GitHub integration can create and merge release PRs, so **new release PR merges** can publish through the Actions workflow. It does not currently expose a way to dispatch a workflow directly or edit Actions secrets/variables. Existing-release re-uploads require starting the dedicated workflow from GitHub's Actions UI. Always confirm the actual workflow result and returned CurseForge file ID; a GitHub release alone does not prove a CurseForge upload.
