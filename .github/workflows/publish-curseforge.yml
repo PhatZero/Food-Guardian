@@ -3,6 +3,10 @@ name: Publish Food Guardian to CurseForge
 # Upload a ZIP from an existing, validated GitHub release.
 # No addon code is built or changed, and no new GitHub release is created.
 on:
+  # A specifically named branch can trigger an existing-release upload
+  # when workflow-dispatch is not available through the connected API.
+  # Branch example: curseforge-publish/forever-1.0.0
+  create:
   workflow_dispatch:
     inputs:
       release_tag:
@@ -21,6 +25,11 @@ concurrency:
 jobs:
   upload:
     name: Upload tested GitHub ZIP to CurseForge
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'create' &&
+       github.event.ref_type == 'branch' &&
+       startsWith(github.event.ref, 'curseforge-publish/forever-'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -47,9 +56,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REQUESTED_TAG: ${{ inputs.release_tag }}
+          EVENT_NAME: ${{ github.event_name }}
+          CREATED_REF: ${{ github.event.ref }}
         run: |
           set -euo pipefail
           tag="$REQUESTED_TAG"
+          if [[ "$EVENT_NAME" == 'create' ]]; then
+            # A branch can only upload the exact already-released tag in its name.
+            tag="${CREATED_REF#curseforge-publish/}"
+          fi
           if [[ -z "$tag" ]]; then
             tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
           fi
