@@ -9,12 +9,38 @@ local function atan2(y, x)
   return -math.pi / 2
 end
 
+local function minimapGeometry()
+  local width = FG:SafeNumber(Minimap:GetWidth()) or 140
+  local height = FG:SafeNumber(Minimap:GetHeight()) or 140
+  if width < 40 then width = 140 end
+  if height < 40 then height = 140 end
+  local shape = "ROUND"
+  if type(GetMinimapShape) == "function" then
+    local ok, result = pcall(GetMinimapShape)
+    if ok and type(result) == "string" then shape = result end
+  end
+  return width, height, shape
+end
+
 function FG:RepositionMinimap()
   local icon = self.minimap
   if not icon then return end
+  local width, height, shape = minimapGeometry()
   local a = math.rad(self.db.minimapAngle or 220)
+  local dx, dy = math.cos(a), math.sin(a)
+  local x, y
+  if shape == "SQUARE" then
+    -- For square minimaps, intersect the ray with the appropriate edge.
+    local radius = math.min((width / 2 + 7) / math.max(math.abs(dx), .001),
+      (height / 2 + 7) / math.max(math.abs(dy), .001))
+    x, y = dx * radius, dy * radius
+  else
+    -- Keep the shield centered on the actual rim, including resized minimaps.
+    x, y = dx * (width / 2 + 8), dy * (height / 2 + 8)
+  end
   icon:ClearAllPoints()
-  icon:SetPoint("CENTER", Minimap, "CENTER", math.cos(a) * 78, math.sin(a) * 78)
+  icon:SetPoint("CENTER", Minimap, "CENTER", x, y)
+  self.minimapWidth, self.minimapHeight, self.minimapShape = width, height, shape
 end
 
 function FG:CreateMinimap()
@@ -32,7 +58,7 @@ function FG:CreateMinimap()
   local badge = icon:CreateTexture(nil, "BACKGROUND")
   badge:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
   badge:SetSize(55, 55)
-  badge:SetPoint("TOPLEFT", 0, 0)
+  badge:SetPoint("CENTER", icon, "CENTER", 0, 0)
   local shield = icon:CreateTexture(nil, "ARTWORK")
   shield:SetSize(23, 23)
   shield:SetPoint("CENTER", -1, 1)
@@ -47,11 +73,15 @@ function FG:CreateMinimap()
     if mouse == "RightButton" then FG:ToggleSettings() else FG:ToggleWindow() end
   end)
   icon:SetScript("OnDragStart", function(self)
+    if FG.inCombat then return end
     self:SetScript("OnUpdate", function()
-      local scale = UIParent:GetEffectiveScale()
+      if FG.inCombat then self:SetScript("OnUpdate", nil); return end
+      local scale = Minimap:GetEffectiveScale()
+      if not scale or scale <= 0 then scale = UIParent:GetEffectiveScale() end
+      if not scale or scale <= 0 then return end
       local cursorX, cursorY = GetCursorPosition()
       local midX, midY = Minimap:GetCenter()
-      if cursorX and midX then
+      if cursorX and cursorY and midX and midY then
         local a = atan2(cursorY / scale - midY, cursorX / scale - midX)
         FG.db.minimapAngle = (math.deg(a) + 360) % 360
         FG:RepositionMinimap()
@@ -59,10 +89,11 @@ function FG:CreateMinimap()
     end)
   end)
   icon:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
+  icon:SetScript("OnHide", function(self) self:SetScript("OnUpdate", nil) end)
   icon:SetScript("OnEnter", function(self)
     if not GameTooltip then return end
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetText("Food Guardian |cffc2a46b[v1.0.0]|r", 1, .82, .46)
+    GameTooltip:SetText("Food Guardian |cffc2a46b[v1.0.1]|r", 1, .82, .46)
     GameTooltip:AddLine("Left-click: Toggle tracker", .85, .9, .82)
     GameTooltip:AddLine("Right-click: Settings", .85, .9, .82)
     GameTooltip:AddLine("Drag: Move minimap icon", .85, .9, .82)
@@ -77,8 +108,13 @@ end
 
 function FG:UpdateMinimap()
   if not self.minimap then return end
-  self.minimap:SetShown(self.db.minimap)
-  if not self.db.minimap then return end
+  local width, height, shape = minimapGeometry()
+  if width ~= self.minimapWidth or height ~= self.minimapHeight or shape ~= self.minimapShape then
+    self:RepositionMinimap()
+  end
+  local shown = self.db.minimap and not self:ShouldHideInCombat()
+  self.minimap:SetShown(shown)
+  if not shown then return end
   local statusFood = self:Status("food")
   local statusBag = self:Status("bag")
   local statusCamp = self:Status("camp")

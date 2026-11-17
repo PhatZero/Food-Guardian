@@ -1,3 +1,28 @@
+# Food Guardian 1.0.1 — Stability & Combat Compatibility
+
+**World of Warcraft: Forever (1.60.1)**
+
+## Fixes
+- **Combat-safe tracker:** Food Guardian now hides its tracker, settings, and minimap launcher when combat starts and restores the appropriate windows when combat ends.
+- **Fewer UI conflicts:** Buff scans and tracker refreshes pause while combat hiding is active; movement and resizing are guarded during combat.
+- **Minimap edge alignment:** The shield launcher now follows the minimap's actual size and shape, including resized or square minimaps.
+- **Protected-action diagnostics:** Added support for recording Blizzard blocked/forbidden-action events and reporting the protected function with `/fg protected`.
+- **Safer slash-command setup:** No longer reassigns Blizzard's global slash-command registry.
+
+## Settings & Commands
+- New **Hide Food Guardian during combat** option, enabled by default.
+- `/fg combat on` and `/fg combat off` toggle automatic combat hiding.
+- `/fg protected` displays the most recently reported protected-action information.
+- All three display modes (Full Window, Compact Bar, Icon Mode) remain supported.
+
+## Verification
+- Automated Lua 5.1 validation, WoW runtime mock tests, and package checks.
+- In-game testing reported no further protected-action errors with the QA build.
+
+**Existing settings are preserved.** Food Guardian only monitors buffs and reminders; it does not automatically use items or cast spells.
+
+---
+
 # Food Guardian 1.0.0 — First Public Release
 
 **World of Warcraft: Forever (1.60.1)**

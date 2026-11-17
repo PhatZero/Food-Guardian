@@ -1,6 +1,6 @@
 local addonName, FG = ...
 FG.name = addonName
-FG.version = "1.0.0"
+FG.version = "1.0.1"
 FG.targetInterface = 16001
 FG.items = { sleepingBag = 211527 }
 FG.spells = { sleepingBag = 429959, camp = 1229741, tent = 1229451 }
@@ -18,7 +18,7 @@ FG.colors = {
   red = { 1, 0.37, 0.34 }, cyan = { 0.30, 0.79, 0.85 },
 }
 local defaults = {
-  visible = true, mode = "full", locked = false, minimap = true,
+  visible = true, mode = "full", locked = false, minimap = true, hideInCombat = true,
   flash = true, sound = false, showTent = true,
   foodWarning = 180, bagWarning = 600, campWarning = 600,
   scale = 1, x = 0, y = 85, minimapAngle = 220,
@@ -31,6 +31,8 @@ FG.ready = false
 FG.lastStatuses = {}
 FG.elapsed = 0
 FG.scanElapsed = 0
+FG.protectionEvents = {}
+FG.protectionPending = false
 
 function FG:Print(message)
   if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
@@ -142,7 +144,41 @@ function FG:NotifyTransitions()
   end
 end
 
+-- Observe Blizzard's own blocked/forbidden event. We intentionally never
+-- suppress it or guess which addon caused it; the blame field can be indirect.
+function FG:RecordProtectedAction(eventName, blamedAddon, functionName)
+  local entry = {
+    event = self:SafeString(eventName) or "unknown",
+    blamed = self:SafeString(blamedAddon) or "unknown",
+    action = self:SafeString(functionName) or "UNKNOWN()",
+    time = self:Now(),
+  }
+  if type(debugstack) == "function" then
+    local ok, result = pcall(debugstack, 2, 10, 10)
+    if ok and type(result) == "string" then entry.stack = string.sub(result, 1, 4000) end
+  end
+  table.insert(self.protectionEvents, 1, entry)
+  if #self.protectionEvents > 8 then table.remove(self.protectionEvents) end
+  if self.charDB then self.charDB.lastProtection = entry end
+  self.protectionPending = true
+end
+
+function FG:PrintProtectionInfo()
+  local entries = self.protectionEvents
+  local last = entries and entries[1] or (self.charDB and self.charDB.lastProtection)
+  if not last then
+    self:Print("No blocked-action event captured yet. For full details: /console taintLog 2, restart WoW, reproduce, then inspect Logs/taint.log.")
+    return
+  end
+  self:Print("Protected action: " .. tostring(last.event) ..
+    " | addon=" .. tostring(last.blamed) .. " | function=" .. tostring(last.action))
+  if last.stack then self:Print("Captured stack: " .. tostring(last.stack)) end
+  self:Print("For the complete cause, enable /console taintLog 2 and send Logs/taint.log.")
+end
+
 function FG:Refresh(rescan)
+  -- The combat-hidden UI is fully dormant. Scan again on leaving combat.
+  if self:ShouldHideInCombat() then return end
   if rescan then
     if self.ScanAuras then self:ScanAuras() end
     if self.ScanInventory then self:ScanInventory() end
@@ -195,11 +231,31 @@ function FG:ToggleDemo(variant)
     or "Demo OFF. Live tracking restored.")
 end
 
+function FG:ShouldHideInCombat()
+  return self.db and self.db.hideInCombat and self.inCombat
+end
+
+function FG:ApplyCombatVisibility()
+  if not self.db then return end
+  local hidden = self:ShouldHideInCombat()
+  if self.settings and hidden and self.settings:IsShown() then
+    self.restoreSettingsAfterCombat = true
+  end
+  if self.window then self.window:SetShown(self.db.visible and not hidden) end
+  if self.minimap then self.minimap:SetShown(self.db.minimap and not hidden) end
+  if self.settings then
+    if hidden then
+      self.settings:Hide()
+    elseif self.restoreSettingsAfterCombat then
+      self.restoreSettingsAfterCombat = nil
+      self.settings:Show()
+    end
+  end
+end
+
 function FG:ToggleWindow()
   self.db.visible = not self.db.visible
-  if self.window then
-    if self.db.visible then self.window:Show() else self.window:Hide() end
-  end
+  self:ApplyCombatVisibility()
 end
 
 function FG:SetMode(mode)
@@ -242,10 +298,17 @@ function FG:Slash(message)
     self:ToggleSettings()
   elseif cmd == "show" then
     self.db.visible = true
-    self.window:Show()
+    self:ApplyCombatVisibility()
   elseif cmd == "hide" then
     self.db.visible = false
-    self.window:Hide()
+    self:ApplyCombatVisibility()
+  elseif cmd == "combat" then
+    if value == "on" then self.db.hideInCombat = true
+    elseif value == "off" then self.db.hideInCombat = false
+    else self.db.hideInCombat = not self.db.hideInCombat end
+    self:ApplyCombatVisibility()
+    if self.UpdateSettings then self:UpdateSettings() end
+    self:Print("Hide in combat " .. (self.db.hideInCombat and "enabled." or "disabled."))
   elseif cmd == "mode" then
     if not self:SetMode(value) then
       self:Print("Choose /fg mode full, /fg mode compact, or /fg mode icons.")
@@ -267,8 +330,10 @@ function FG:Slash(message)
     self:SetScale(tonumber(value) or 1)
   elseif cmd == "debug" then
     self:Debug()
+  elseif cmd == "protected" or cmd == "taint" then
+    self:PrintProtectionInfo()
   else
-    self:Print("/fg mode full|compact|icons | cycle | settings | demo healthy|warning|off | lock | reset | scale 1.1 | debug")
+    self:Print("/fg mode full|compact|icons | cycle | settings | demo healthy|warning|off | combat on|off | lock | reset | scale 1.1 | debug | protected")
   end
 end
 
@@ -281,6 +346,7 @@ function FG:Init()
     if FoodGuardianDB[key] == nil then FoodGuardianDB[key] = val end
   end
   self.db = FoodGuardianDB
+  self.inCombat = type(InCombatLockdown) == "function" and InCombatLockdown() or false
   if not hadMode and previousCompact then self.db.mode = "compact" end
   if self.db.mode ~= "full" and self.db.mode ~= "compact" and self.db.mode ~= "icons" then
     self.db.mode = self.db.compact and "compact" or "full"
@@ -296,24 +362,42 @@ function FG:Init()
   self:CreateMinimap()
   self:Refresh(true)
   self.ready = true
-  SlashCmdList = SlashCmdList or {}
+  -- Blizzard owns SlashCmdList. Do not ever replace its global registry.
   SLASH_FOODGUARDIAN1 = "/fg"
   SLASH_FOODGUARDIAN2 = "/foodguardian"
-  SlashCmdList.FOODGUARDIAN = function(text) FG:Slash(text) end
-  self:Print("v1.0.0 ready. /fg mode full|compact|icons; /fg settings for options.")
-  if self.db.visible then self.window:Show() else self.window:Hide() end
+  if type(SlashCmdList) == "table" then
+    SlashCmdList.FOODGUARDIAN = function(text) FG:Slash(text) end
+  end
+  self:Print("v1.0.1 ready. /fg mode full|compact|icons; /fg settings for options.")
+  self:ApplyCombatVisibility()
 end
 
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:RegisterEvent("PLAYER_REGEN_DISABLED")
+events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("UNIT_AURA")
 events:RegisterEvent("BAG_UPDATE_DELAYED")
 events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 events:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-events:SetScript("OnEvent", function(_, event, arg1)
-  if event == "ADDON_LOADED" then
+-- Some Forever client builds omit diagnostic events. Never make startup fail.
+pcall(events.RegisterEvent, events, "ADDON_ACTION_BLOCKED")
+pcall(events.RegisterEvent, events, "ADDON_ACTION_FORBIDDEN")
+events:SetScript("OnEvent", function(_, event, arg1, arg2)
+  if event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
+    FG:RecordProtectedAction(event, arg1, arg2)
+  elseif event == "ADDON_LOADED" then
     if arg1 == addonName then FG:Init() end
+  elseif event == "PLAYER_REGEN_DISABLED" then
+    FG.inCombat = true
+    if FG.ready then FG:ApplyCombatVisibility() end
+  elseif event == "PLAYER_REGEN_ENABLED" then
+    FG.inCombat = false
+    if FG.ready then
+      FG:ApplyCombatVisibility()
+      FG:Refresh(true)
+    end
   elseif FG.ready and event == "UNIT_AURA" then
     if arg1 == "player" then FG:Refresh(true) end
   elseif FG.ready then
@@ -321,7 +405,15 @@ events:SetScript("OnEvent", function(_, event, arg1)
   end
 end)
 events:SetScript("OnUpdate", function(_, elapsed)
-  if not FG.ready then return end
+  if not FG.ready or FG:ShouldHideInCombat() then return end
+  if FG.protectionPending then
+    FG.protectionPending = false
+    local issue = FG.protectionEvents[1]
+    if issue then
+      FG:Print("Blizzard blocked " .. tostring(issue.action) .. " (blamed: " ..
+        tostring(issue.blamed) .. "). Run /fg protected for details.")
+    end
+  end
   FG.elapsed = FG.elapsed + elapsed
   FG.scanElapsed = FG.scanElapsed + elapsed
   if FG.elapsed >= 0.15 then

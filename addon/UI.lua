@@ -175,9 +175,10 @@ local function modeTile(parent, key, i, style)
     else FG:SetMode("full") end
   end)
   item:SetScript("OnDragStart", function()
-    if not FG.db.locked then FG.window:StartMoving() end
+    if not FG.db.locked and not FG.inCombat then FG.window:StartMoving() end
   end)
   item:SetScript("OnDragStop", function()
+    if FG.inCombat then return end
     FG.window:StopMovingOrSizing()
     if not FG.db.locked then FG:SavePosition() end
   end)
@@ -228,16 +229,17 @@ function FG:CreateUI()
   frame.header = header
   header:EnableMouse(true)
   header:SetScript("OnMouseDown", function(_, button)
-    if button == "LeftButton" and not FG.db.locked then frame:StartMoving() end
+    if button == "LeftButton" and not FG.db.locked and not FG.inCombat then frame:StartMoving() end
   end)
   header:SetScript("OnMouseUp", function(_, button)
-    if button == "LeftButton" and not FG.db.locked then
+    if button == "LeftButton" and not FG.db.locked and not FG.inCombat then
       frame:StopMovingOrSizing()
       FG:SavePosition()
     end
   end)
   header:SetScript("OnHide", function()
-    frame:StopMovingOrSizing()
+    -- OnHide also runs when combat concealment starts. Never move a frame then.
+    if not FG.inCombat then frame:StopMovingOrSizing() end
   end)
 
   local crest = header:CreateTexture(nil, "ARTWORK")
@@ -247,7 +249,7 @@ function FG:CreateUI()
   frame.crest = crest
   frame.heading = font(header, 19, self.colors.bright, "Food Guardian")
   frame.heading:SetPoint("TOPLEFT", 50, -8)
-  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.0.0")
+  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.0.1")
   frame.subtitle:SetPoint("TOPLEFT", 51, -30)
 
   frame.closeButton = smallButton(header, 0, "Close tracker (reopen with /fg)", -10, function() FG:ToggleWindow() end)
@@ -311,11 +313,16 @@ function FG:CreateUI()
   local gripLabel = font(grip, 16, self.colors.gold, "//", "CENTER")
   gripLabel:SetAllPoints()
   grip:SetScript("OnMouseDown", function(self, button)
-    if button ~= "LeftButton" or FG.db.locked or type(GetCursorPosition) ~= "function" then return end
+    if button ~= "LeftButton" or FG.db.locked or FG.inCombat or type(GetCursorPosition) ~= "function" then return end
     local x = GetCursorPosition()
     self.dragStart = x
     self.scaleStart = FG.db.scale
     self:SetScript("OnUpdate", function(b)
+      if FG.inCombat then
+        b:SetScript("OnUpdate", nil)
+        b.dragStart = nil
+        return
+      end
       local cursorX = GetCursorPosition()
       local unitScale = UIParent:GetEffectiveScale()
       local delta = (cursorX - b.dragStart) / (unitScale * 414)

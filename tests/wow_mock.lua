@@ -14,6 +14,7 @@ function methods:GetFrameLevel() return 1 end
 function methods:GetCenter() return 400,400 end
 function methods:GetEffectiveScale() return 1 end
 function methods:GetPoint() return "CENTER",UIParent,"CENTER",0,85 end
+function methods:SetPoint(...) self.__point={...} end
 function methods:SetShown(v) self.shown=v end
 function methods:Show() self.shown=true end
 function methods:Hide() self.shown=false end
@@ -39,6 +40,8 @@ CreateFrame=function(kind,name,parent,template)
 end
 UIParent=setmetatable({},mockMT)
 Minimap=setmetatable({},mockMT)
+Minimap:SetSize(220,220)
+GetMinimapShape=function() return "ROUND" end
 GameTooltip=setmetatable({},mockMT)
 DEFAULT_CHAT_FRAME={AddMessage=function() end}
 STANDARD_TEXT_FONT="Fonts\\FRIZQT__.TTF"
@@ -75,13 +78,79 @@ end
 local bootstrap=created[1]
 bootstrap.scripts.OnEvent(bootstrap,"ADDON_LOADED","FoodGuardian")
 assert(fg.ready,"addon did not initialize")
-assert(fg.version=="1.0.0","incorrect version")
+assert(fg.version=="1.0.1","incorrect version")
 assert(fg.window and fg.settings and fg.minimap,"UI components not initialized")
 assert(fg.state.food.active and fg.state.bag.active and fg.state.camp.active and fg.state.tent.active,"auras not found")
 assert(fg.state.bag.stacks==3,"sleeping bag stacks not read")
 assert(fg.state.bagOwned and fg.state.bagCooldown==1000,"bag item cooldown not read")
 assert(fg.window.rows.food.time.__text=="10:00","food countdown wrong")
 assert(not fg.auraReadFailed,"aura unexpectedly unreadable")
+
+-- Protected-action diagnostics must never suppress the Blizzard event.
+assert(bootstrap.events.ADDON_ACTION_BLOCKED and bootstrap.events.ADDON_ACTION_FORBIDDEN,
+  "protection diagnostic events not registered")
+bootstrap.scripts.OnEvent(bootstrap,"ADDON_ACTION_BLOCKED","FoodGuardian","SomeProtectedFunction()")
+assert(fg.protectionPending and fg.protectionEvents[1].action=="SomeProtectedFunction()",
+  "protected function not captured")
+assert(fg.charDB.lastProtection.blamed=="FoodGuardian","protected action not saved")
+bootstrap.scripts.OnUpdate(bootstrap,.2)
+assert(not fg.protectionPending,"protected action notice never flushed")
+fg:Slash("protected")
+bootstrap.scripts.OnEvent(bootstrap,"ADDON_ACTION_FORBIDDEN","SomeOtherAddon","OtherFunction()")
+assert(fg.protectionEvents[1].blamed=="SomeOtherAddon",
+  "blamed addon should not be overwritten with Food Guardian")
+for i=1,12 do
+  bootstrap.scripts.OnEvent(bootstrap,"ADDON_ACTION_BLOCKED","FoodGuardian","Synthetic()"..i)
+end
+assert(#fg.protectionEvents==8,"diagnostic history must be bounded")
+fg.protectionPending=false
+
+-- Minimap shield follows the true minimap rim, even when resized.
+local function shieldDistance()
+  local p=fg.minimap.__point
+  return math.sqrt(p[4]*p[4]+p[5]*p[5])
+end
+assert(math.abs(shieldDistance()-118)<.01,"minimap shield not positioned on 220px rim")
+Minimap:SetSize(300,300)
+fg:UpdateMinimap()
+assert(math.abs(shieldDistance()-158)<.01,"minimap resize did not reposition shield")
+GetMinimapShape=function() return "SQUARE" end
+fg:UpdateMinimap()
+local squareX,squareY=fg.minimap.__point[4],fg.minimap.__point[5]
+assert(math.abs(math.max(math.abs(squareX),math.abs(squareY))-157)<.01,
+  "square minimap shield not docked to edge")
+GetMinimapShape=function() return "ROUND" end
+Minimap:SetSize(220,220)
+fg:UpdateMinimap()
+
+-- All addon UI hides in combat without changing the saved user preference.
+assert(fg.db.hideInCombat==true,"hide in combat should default on")
+fg.settings:Show()
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
+assert(fg.inCombat and fg.window.shown==false and fg.minimap.shown==false and fg.settings.shown==false,
+  "tracker, minimap and settings must hide in combat")
+fg:Slash("show")
+assert(fg.window.shown==false and fg.db.visible==true,"slash show must not override combat hiding")
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
+assert(not fg.inCombat and fg.window.shown and fg.minimap.shown and fg.settings.shown,
+  "user's active windows must return after combat")
+fg.settings:Hide()
+fg.db.visible=false
+fg:ApplyCombatVisibility()
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
+assert(fg.window.shown==false and fg.db.visible==false,"previously hidden window reopened")
+fg.db.visible=true
+fg:ApplyCombatVisibility()
+fg:Slash("combat off")
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
+assert(fg.window.shown and fg.minimap.shown,"combat hide opt-out ignored")
+fg:Slash("combat on")
+assert(fg.window.shown==false and fg.minimap.shown==false,"combat hide re-enable ignored")
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
+assert(fg.window.shown and fg.minimap.shown and fg.db.hideInCombat,
+  "combat state or preference not restored")
+assert(fg.settings.toggles.hideInCombat,"combat visibility setting missing")
 
 -- FULL WINDOW as pictured: header, names, bar, 3 buff rows + optional camp tent.
 assert(fg.db.mode=="full","full should be default")
@@ -179,4 +248,4 @@ fg:Refresh(true)
 assert(fg:Status("camp")=="unknown" and fg.window.rows.camp.time.__text=="UNKNOWN",
  "unreadable aura must not become missing")
 assert(fg.window.compactTiles.food.time.__text=="?","unknown compact status wrong")
-print("Food Guardian release 1.0.0 mock runtime: PASS (all three modes, timers, stacks, warnings, settings)")
+print("Food Guardian mock runtime: PASS (three modes, buffs, combat concealment, minimap rim, settings)")
