@@ -86,6 +86,25 @@ assert(fg.state.bagOwned and fg.state.bagCooldown==1000,"bag item cooldown not r
 assert(fg.window.rows.food.time.__text=="10:00","food countdown wrong")
 assert(not fg.auraReadFailed,"aura unexpectedly unreadable")
 
+-- Protected-action diagnostics must never suppress the Blizzard event.
+assert(bootstrap.events.ADDON_ACTION_BLOCKED and bootstrap.events.ADDON_ACTION_FORBIDDEN,
+  "protection diagnostic events not registered")
+bootstrap.scripts.OnEvent(bootstrap,"ADDON_ACTION_BLOCKED","FoodGuardian","SomeProtectedFunction()")
+assert(fg.protectionPending and fg.protectionEvents[1].action=="SomeProtectedFunction()",
+  "protected function not captured")
+assert(fg.charDB.lastProtection.blamed=="FoodGuardian","protected action not saved")
+bootstrap.scripts.OnUpdate(bootstrap,.2)
+assert(not fg.protectionPending,"protected action notice never flushed")
+fg:Slash("protected")
+bootstrap.scripts.OnEvent(bootstrap,"ADDON_ACTION_FORBIDDEN","SomeOtherAddon","OtherFunction()")
+assert(fg.protectionEvents[1].blamed=="SomeOtherAddon",
+  "blamed addon should not be overwritten with Food Guardian")
+for i=1,12 do
+  bootstrap.scripts.OnEvent(bootstrap,"ADDON_ACTION_BLOCKED","FoodGuardian","Synthetic()"..i)
+end
+assert(#fg.protectionEvents==8,"diagnostic history must be bounded")
+fg.protectionPending=false
+
 -- Minimap shield follows the true minimap rim, even when resized.
 local function shieldDistance()
   local p=fg.minimap.__point
