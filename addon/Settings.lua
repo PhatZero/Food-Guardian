@@ -171,7 +171,7 @@ function FG:CreateSettings()
     FG:ResetPosition()
   end)
   reset:SetPoint("BOTTOMRIGHT", -16, 12)
-  local footer = self.Font(frame, 10, self.colors.muted, "VERSION 1.0.0  ·  FOOD GUARDIAN")
+  local footer = self.Font(frame, 10, self.colors.muted, "VERSION 1.0.1  ·  FOOD GUARDIAN")
   footer:SetPoint("BOTTOMLEFT", 19, 17)
 
   if type(UISpecialFrames) == "table" then
