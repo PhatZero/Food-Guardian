@@ -14,7 +14,7 @@
 4. GitHub Actions selects/stamps the version, validates all Lua 5.1 files, runs game-runtime mock tests, and packages the installable ZIP.
 5. The workflow creates or checks the GitHub release and submits **the same validated ZIP** and Markdown release notes to CurseForge through `scripts/upload-forever.sh`. Stable versions use CurseForge type **release**; beta versions use **beta**.
 
-**Required GitHub Actions configuration:** secret `CURSEFORGE_TOKEN` and variable `CURSEFORGE_PROJECT_ID=1810129` in **Settings → Secrets and variables → Actions**. These settings must be configured in Food Guardian, not inherited from WayForth. If missing, CurseForge submission fails and must be retried after configuring them.
+**Required GitHub Actions configuration:** The Food Guardian repository needs the `CURSEFORGE_TOKEN` secret in **Settings → Secrets and variables → Actions**. The public CurseForge project ID `1810129` is pinned in both publishing workflows to prevent missing-variable failures and accidental cross-project uploads. Do not place the token in source.
 
 ## Publish an existing GitHub release to CurseForge
 
