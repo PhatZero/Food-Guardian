@@ -1,6 +1,6 @@
 # Food Guardian Releases
 
-- Stable version: `1.0.0` (tag `forever-1.0.0`).
+- Stable version: `1.0.1` (tag `forever-1.0.1`).
 - Beta pattern: `1.0b1` (tag `forever-1.0b1`).
 - Installable archive: `FoodGuardian-Forever-<version>.zip`, root folder `FoodGuardian/`.
 
