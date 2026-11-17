@@ -126,7 +126,7 @@ jobs:
         shell: bash
         env:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          CURSEFORGE_PROJECT_ID: '1810129'
           CHANGELOG: ${{ inputs.changelog }}
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: forever-${{ needs.version.outputs.number }}
