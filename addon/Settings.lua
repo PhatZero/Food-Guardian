@@ -39,10 +39,10 @@ function FG:CreateSettings()
   header:SetHeight(51)
   header:EnableMouse(true)
   header:SetScript("OnMouseDown", function(_, mouse)
-    if mouse == "LeftButton" then frame:StartMoving() end
+    if mouse == "LeftButton" and not FG.inCombat then frame:StartMoving() end
   end)
   header:SetScript("OnMouseUp", function(_, mouse)
-    if mouse == "LeftButton" then frame:StopMovingOrSizing() end
+    if mouse == "LeftButton" and not FG.inCombat then frame:StopMovingOrSizing() end
   end)
   local title = self.Font(header, 17, self.colors.bright, "FOOD GUARDIAN  ·  SETTINGS")
   title:SetPoint("TOPLEFT", 17, -11)
@@ -125,15 +125,17 @@ function FG:CreateSettings()
     { "showTent", "Show Camp Tent / Boosted Rest strip" },
     { "minimap", "Show minimap shield launcher" },
     { "locked", "Lock tracker position and scale" },
+    { "hideInCombat", "Hide Food Guardian during combat" },
   }
   for i, option in ipairs(opts) do
     local key = option[1]
-    local y = -379 - (i - 1) * 30
+    local y = -379 - (i - 1) * 26
     local label = self.Font(frame, 11, self.colors.ivory, option[2])
     label:SetPoint("TOPLEFT", 24, y - 4)
     local switch = button(frame, "OFF", 52, 24, function()
       FG.db[key] = not FG.db[key]
       if key == "showTent" or key == "locked" then FG:ApplyLayout() end
+      if key == "hideInCombat" or key == "minimap" then FG:ApplyCombatVisibility() end
       FG:UpdateSettings()
       FG:Refresh(false)
     end)
@@ -142,14 +144,14 @@ function FG:CreateSettings()
   end
 
   local sText = self.Font(frame, 11, self.colors.ivory, "Window scale")
-  sText:SetPoint("TOPLEFT", 23, -532)
+  sText:SetPoint("TOPLEFT", 23, -541)
   frame.scaleText = self.Font(frame, 11, self.colors.gold, "100%", "CENTER")
-  frame.scaleText:SetPoint("TOPLEFT", 293, -532)
+  frame.scaleText:SetPoint("TOPLEFT", 293, -541)
   frame.scaleText:SetSize(52, 22)
   local less = button(frame, "-", 25, 23, function() FG:SetScale(FG.db.scale - .05) end)
-  less:SetPoint("TOPLEFT", 260, -529)
+  less:SetPoint("TOPLEFT", 260, -538)
   local more = button(frame, "+", 25, 23, function() FG:SetScale(FG.db.scale + .05) end)
-  more:SetPoint("TOPLEFT", 350, -529)
+  more:SetPoint("TOPLEFT", 350, -538)
 
   frame.demoButtons = {}
   local previewModes = {
@@ -162,7 +164,7 @@ function FG:CreateSettings()
     local demo = button(frame, item.label, 123, 28, function()
       FG:ToggleDemo(variant)
     end)
-    demo:SetPoint("TOPLEFT", 18 + (i - 1) * 136, -570)
+    demo:SetPoint("TOPLEFT", 18 + (i - 1) * 136, -574)
     frame.demoButtons[item.key] = demo
   end
   local reset = button(frame, "RESET POSITION", 142, 25, function()
@@ -215,6 +217,10 @@ end
 
 function FG:ToggleSettings()
   if not self.settings then return end
+  if self:ShouldHideInCombat() then
+    self:Print("Settings are hidden until combat ends.")
+    return
+  end
   if self.settings:IsShown() then self.settings:Hide()
   else self.settings:Show() end
 end
