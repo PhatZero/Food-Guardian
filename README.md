@@ -2,7 +2,7 @@
 
 A standalone World of Warcraft: Forever 1.60.1 addon for food, sleeping-bag and campfire buff tracking.
 
-**Version 1.0.1** · [Release notes](CHANGELOG.md)
+**Version 1.0.2** · [Release notes](CHANGELOG.md)
 
 ## Features
 - Full Window, Compact Bar, and Icon Mode.
