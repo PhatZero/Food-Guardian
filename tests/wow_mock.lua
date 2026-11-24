@@ -12,6 +12,8 @@ function methods:SetText(v) self.__text=v end
 function methods:GetText() return self.__text end
 function methods:GetFrameLevel() return 1 end
 function methods:GetCenter() return 400,400 end
+function methods:GetParent() return self.parent end
+function methods:SetParent(p) self.parent=p end
 function methods:GetEffectiveScale() return 1 end
 function methods:GetPoint() return "CENTER",UIParent,"CENTER",0,85 end
 function methods:SetPoint(...) self.__point={...} end
@@ -121,6 +123,45 @@ assert(math.abs(math.max(math.abs(squareX),math.abs(squareY))-157)<.01,
   "square minimap shield not docked to edge")
 GetMinimapShape=function() return "ROUND" end
 Minimap:SetSize(220,220)
+fg:UpdateMinimap()
+
+-- EllesmereUI owns the placement and shown state of collected minimap buttons.
+-- Food Guardian must not undo a grouped button's flyout anchor or force-show it
+-- during ordinary status refreshes. It still controls its own on/off preference.
+local euiFlyout=CreateFrame("Frame","MockEllesmereFlyout",UIParent)
+_G._EMM_DB={profile={minimap={enabled=true}}}
+fg.minimap:SetParent(euiFlyout)
+fg.minimap:SetPoint("TOPLEFT",euiFlyout,"TOPLEFT",12,-8)
+local externalPoint=fg.minimap.__point
+fg.minimap:SetShown(false) -- the external manager grouped/hidden the button
+Minimap:SetSize(320,320)
+fg:UpdateMinimap()
+fg:UpdateMinimap()
+assert(fg.minimap.__point==externalPoint and fg.minimap:GetParent()==euiFlyout,
+  "Food Guardian overwrote EllesmereUI's button layout")
+assert(fg.minimap.shown==false,"status refresh force-showed EllesmereUI's grouped button")
+fg.db.minimap=false
+fg:UpdateMinimap()
+assert(fg.minimap.shown==false,"minimap preference did not hide EllesmereUI button")
+fg.db.minimap=true
+fg:UpdateMinimap()
+assert(fg.minimap.shown==true,"minimap preference did not restore EllesmereUI button")
+fg.inCombat=true
+fg:ApplyCombatVisibility()
+assert(fg.minimap.shown==false,"combat hiding did not apply to EllesmereUI button")
+fg.inCombat=false
+fg:ApplyCombatVisibility()
+assert(fg.minimap.shown==true,"EllesmereUI button not restored after combat")
+-- When the external minimap is disabled, return to Food Guardian's native rim.
+fg.minimap:SetScript("OnDragStart",nil) -- Ellesmere disables native dragging
+_G._EMM_DB.profile.minimap.enabled=false
+fg:UpdateMinimap()
+assert(fg.minimap:GetParent()==Minimap,"native minimap parent was not restored")
+assert(math.abs(shieldDistance()-168)<.01,"native minimap edge position was not restored")
+assert(fg.minimap.scripts.OnDragStart,"native minimap drag handler was not restored")
+assert(fg.minimap.shown==true,"icon remained hidden after external manager disabled")
+Minimap:SetSize(220,220)
+_G._EMM_DB=nil
 fg:UpdateMinimap()
 
 -- All addon UI hides in combat without changing the saved user preference.
