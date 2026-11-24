@@ -48,7 +48,7 @@ function FG:RepositionMinimap()
   if not icon or self:IsEllesmereMinimapActive() then return end
   -- A disabled external minimap may leave our button inside its flyout.
   -- Restore the native parent, art, and drag behavior if it is switched off.
-  if icon:GetParent() ~= Minimap then
+  if self.nativeRestorePending or icon:GetParent() ~= Minimap then
     if self.inCombat then return end
     icon:SetParent(Minimap)
     icon:SetAlpha(1)
@@ -137,7 +137,11 @@ function FG:CreateMinimap()
     GameTooltip:SetText("Food Guardian |cffc2a46b[v1.0.1]|r", 1, .82, .46)
     GameTooltip:AddLine("Left-click: Toggle tracker", .85, .9, .82)
     GameTooltip:AddLine("Right-click: Settings", .85, .9, .82)
-    GameTooltip:AddLine("Drag: Move minimap icon", .85, .9, .82)
+    if FG:IsEllesmereMinimapActive() then
+      GameTooltip:AddLine("Position: EllesmereUI minimap settings", .85, .9, .82)
+    else
+      GameTooltip:AddLine("Drag: Move minimap icon", .85, .9, .82)
+    end
     GameTooltip:AddLine("/fg demo: Preview all states", .4, .85, .88)
     GameTooltip:Show()
   end)
@@ -153,16 +157,20 @@ function FG:UpdateMinimap()
   local managed = self:IsEllesmereMinimapActive()
   if managed ~= self.minimapManagedByEllesmere then
     self.minimapManagedByEllesmere = managed
-    if not managed then
+    if not managed then self.nativeRestorePending = true end
+  end
+  if not managed then
+    if self.nativeRestorePending and not self.inCombat then
       self:RepositionMinimap()
-      -- An external flyout may have hidden the button. Reapply our preference
-      -- once after returning to native placement.
+      self.nativeRestorePending = nil
+      -- The external manager may have hidden even an ungrouped button.
+      -- Reapply Food Guardian's own visibility when native mode resumes.
       self.minimapRequestedVisible = nil
-    end
-  elseif not managed then
-    local width, height, shape = minimapGeometry()
-    if width ~= self.minimapWidth or height ~= self.minimapHeight or shape ~= self.minimapShape then
-      self:RepositionMinimap()
+    else
+      local width, height, shape = minimapGeometry()
+      if width ~= self.minimapWidth or height ~= self.minimapHeight or shape ~= self.minimapShape then
+        self:RepositionMinimap()
+      end
     end
   end
   self:ApplyMinimapVisibility()
