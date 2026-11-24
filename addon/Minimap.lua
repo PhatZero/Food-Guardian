@@ -134,7 +134,7 @@ function FG:CreateMinimap()
   icon:SetScript("OnEnter", function(self)
     if not GameTooltip then return end
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetText("Food Guardian |cffc2a46b[v1.0.1]|r", 1, .82, .46)
+    GameTooltip:SetText("Food Guardian |cffc2a46b[v1.0.2]|r", 1, .82, .46)
     GameTooltip:AddLine("Left-click: Toggle tracker", .85, .9, .82)
     GameTooltip:AddLine("Right-click: Settings", .85, .9, .82)
     if FG:IsEllesmereMinimapActive() then
