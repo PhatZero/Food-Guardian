@@ -242,7 +242,7 @@ function FG:ApplyCombatVisibility()
     self.restoreSettingsAfterCombat = true
   end
   if self.window then self.window:SetShown(self.db.visible and not hidden) end
-  if self.minimap then self.minimap:SetShown(self.db.minimap and not hidden) end
+  if self.minimap then self:ApplyMinimapVisibility() end
   if self.settings then
     if hidden then
       self.settings:Hide()
