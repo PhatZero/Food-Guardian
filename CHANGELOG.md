@@ -1,3 +1,22 @@
+# Food Guardian 1.0.2: EllesmereUI Compatibility
+
+**World of Warcraft: Forever (1.60.1)**
+
+## Fixes
+- Improved minimap shield compatibility with EllesmereUI's addon-button row and grouped flyout.
+- Prevented routine buff refreshes from overriding externally managed button placement or visibility.
+- Exposed the shield texture for correct sizing by compatible minimap managers.
+- Restored native minimap placement and dragging when EllesmereUI's minimap module is disabled.
+- Preserved combat-hide and minimap visibility preferences.
+
+## Testing
+- Added automated regression coverage for external minimap ownership, visibility, resizing, combat hiding, and native fallback.
+- Lua syntax, runtime mock tests, and package validation passed on the compatibility build.
+
+Existing settings and all three tracker modes are preserved.
+
+---
+
 # Food Guardian 1.0.1 — Stability & Combat Compatibility
 
 **World of Warcraft: Forever (1.60.1)**
