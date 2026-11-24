@@ -80,7 +80,7 @@ end
 local bootstrap=created[1]
 bootstrap.scripts.OnEvent(bootstrap,"ADDON_LOADED","FoodGuardian")
 assert(fg.ready,"addon did not initialize")
-assert(fg.version=="1.0.1","incorrect version")
+assert(fg.version=="1.0.2","incorrect version")
 assert(fg.window and fg.settings and fg.minimap,"UI components not initialized")
 assert(fg.state.food.active and fg.state.bag.active and fg.state.camp.active and fg.state.tent.active,"auras not found")
 assert(fg.state.bag.stacks==3,"sleeping bag stacks not read")
