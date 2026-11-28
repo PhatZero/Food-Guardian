@@ -252,7 +252,7 @@ function FG:CreateUI()
   frame.crest = crest
   frame.heading = font(header, 19, self.colors.bright, "Food Guardian")
   frame.heading:SetPoint("TOPLEFT", 50, -8)
-  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b4")
+  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b5")
   frame.subtitle:SetPoint("TOPLEFT", 51, -30)
 
   frame.closeButton = smallButton(header, 0, "Close tracker (reopen with /fg)", -10, function() FG:ToggleWindow() end)
@@ -540,17 +540,18 @@ local function newClassTile(fg)
   local row=CreateFrame("Button",nil,fg.window,"BackdropTemplate")
   fg:SkinPanel(row,true)
   row.icon=row:CreateTexture(nil,"ARTWORK")
-  row.icon:SetSize(28,28)
+  row.icon:SetSize(42,42)
   row.icon:SetPoint("LEFT",4,0)
-  row.title=fg.Font(row,10,fg.colors.ivory,"")
-  row.title:SetPoint("TOPLEFT",36,-5)
-  row.title:SetPoint("TOPRIGHT",-4,-5)
-  row.title:SetHeight(13)
+  row.title=fg.Font(row,12,fg.colors.ivory,"","LEFT")
+  row.title:SetPoint("TOPLEFT",52,-6)
+  row.title:SetPoint("TOPRIGHT",-6,-6)
+  row.title:SetHeight(16)
   if row.title.SetWordWrap then row.title:SetWordWrap(false) end
-  row.time=fg.Font(row,12,fg.colors.green,"","RIGHT")
-  row.time:SetPoint("BOTTOMLEFT",36,5)
-  row.time:SetPoint("BOTTOMRIGHT",-5,5)
-  row.time:SetHeight(14)
+  -- Keep the time directly below the name, not at the far opposite edge.
+  row.time=fg.Font(row,15,fg.colors.green,"","LEFT")
+  row.time:SetPoint("BOTTOMLEFT",52,6)
+  row.time:SetPoint("BOTTOMRIGHT",-6,6)
+  row.time:SetHeight(18)
   row:RegisterForClicks("LeftButtonUp","RightButtonUp","MiddleButtonUp")
   row:RegisterForDrag("LeftButton")
   row:SetScript("OnClick",function(_,mouse)
@@ -588,9 +589,9 @@ function FG:LayoutClassRows()
   -- with a centered half-width tile on an incomplete final row.
   -- Icon mode keeps its three square icons per row.
   local columns=mode=="icons" and 3 or 2
-  local gap=mode=="icons" and 5 or 6
-  local tileWidth=mode=="icons" and 51 or math.floor((width-12-gap)/2)
-  local tileHeight=mode=="icons" and 51 or 38
+  local gap=mode=="icons" and 5 or 4
+  local tileWidth=mode=="icons" and 51 or math.floor((width-10-gap)/2)
+  local tileHeight=mode=="icons" and 51 or 50
   local top=mode=="full" and 365 or 59
   for i,d in ipairs(list) do
     local row=self.classRows[i]
@@ -604,7 +605,7 @@ function FG:LayoutClassRows()
     row:SetPoint("TOPLEFT",self.window,"TOPLEFT",startX+((i-1)%columns)*(tileWidth+gap),
       -top-line*(tileHeight+gap))
     row:SetSize(tileWidth,tileHeight)
-    local iconSize=mode=="icons" and 43 or 30
+    local iconSize=mode=="icons" and 43 or 42
     row.icon:SetSize(iconSize,iconSize)
     row.title:SetShown(mode~="icons")
     row.time:SetShown(mode~="icons")

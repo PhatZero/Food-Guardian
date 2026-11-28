@@ -1,6 +1,6 @@
 local addonName, FG = ...
 FG.name = addonName
-FG.version = "1.1b4"
+FG.version = "1.1b5"
 FG.targetInterface = 16001
 FG.items = { sleepingBag = 211527 }
 FG.spells = { sleepingBag = 429959, camp = 1229741, tent = 1229451 }
@@ -299,6 +299,7 @@ function FG:ToggleCompact()
 end
 
 function FG:Debug()
+  self:Print("Version "..self.version.." | layout: "..tostring(self.db.mode).." | class layout: paired 50px tiles")
   self:Refresh(true)
   self:Print("Combat visibility: " .. (self.db.hideInCombat and "hide" or "cached timers") ..
     "; in combat: " .. tostring(self.inCombat) .. "; tracker enabled: " .. tostring(self.db.visible) ..
@@ -407,7 +408,7 @@ function FG:Init()
   if type(SlashCmdList) == "table" then
     SlashCmdList.FOODGUARDIAN = function(text) FG:Slash(text) end
   end
-  self:Print("v1.1b4 ready. /fg mode full|compact|icons; /fg settings for options.")
+  self:Print("v1.1b5 ready. /fg mode full|compact|icons; /fg settings for options.")
   self:ApplyCombatVisibility()
 end
 

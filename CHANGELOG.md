@@ -1,3 +1,11 @@
+## 1.1b5 — Visible compact layout redesign
+
+- Match class tile height and icon scale to the core compact buff tiles.
+- Align both rows to the same outer edges and four-pixel gutters.
+- Place larger timers directly under buff names rather than at the far edge of a wide tile.
+- Show the running version in Settings and debug output for installation verification.
+- Extend geometry regression checks in all modes.
+
 ## 1.1b4 — Two-column class buff layout
 
 - Keep the three main buffs on their original row; optional named buffs use two equal-width tiles per row.
