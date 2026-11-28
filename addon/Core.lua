@@ -1,6 +1,6 @@
 local addonName, FG = ...
 FG.name = addonName
-FG.version = "1.1b7"
+FG.version = "1.1b8"
 FG.targetInterface = 16001
 FG.items = { sleepingBag = 211527 }
 FG.spells = { sleepingBag = 429959, camp = 1229741, tent = 1229451 }
@@ -408,7 +408,7 @@ function FG:Init()
   if type(SlashCmdList) == "table" then
     SlashCmdList.FOODGUARDIAN = function(text) FG:Slash(text) end
   end
-  self:Print("v1.1b7 ready. /fg mode full|compact|icons; /fg settings for options.")
+  self:Print("v1.1b8 ready. /fg mode full|compact|icons; /fg settings for options.")
   self:ApplyCombatVisibility()
 end
 

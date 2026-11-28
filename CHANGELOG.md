@@ -1,3 +1,10 @@
+## 1.1b8 — Complete compact core borders
+
+- Apply the same explicit four-sided borders used by class buffs to food, sleeping bag and campfire tiles in compact and icon modes.
+- Use a single explicit outer border in every mode, even when class tracking is disabled, retaining warning colors and flashing.
+- Preserve the approved centered class buff layout and full view.
+- Extend regression coverage for all core border edges.
+
 ## 1.1b7 — Class tile border and text rendering fix
 
 - Draw explicit four-sided class tile and tracker borders with dedicated textures instead of relying on resized backdrops.

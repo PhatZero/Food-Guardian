@@ -94,7 +94,7 @@ assert(fg.db.hideInCombat==false and fg.db.combatVisibilityVersion==1,"legacy hi
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
 assert(fg.window:IsShown(),"migrated tracker still hides in combat")
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
-assert(fg.version=="1.1b7","incorrect version")
+assert(fg.version=="1.1b8","incorrect version")
 assert(fg.window and fg.settings and fg.minimap,"UI components not initialized")
 assert(fg.state.food.active and fg.state.bag.active and fg.state.camp.active and fg.state.tent.active,"auras not found")
 assert(fg.state.bag.stacks==3,"sleeping bag stacks not read")
@@ -312,7 +312,7 @@ fg:Slash("demo warning")
 assert(fg:Status("food")=="warning" and fg:Status("camp")=="warning","warning demo statuses wrong")
 assert(fg.window.rows.food.time.__text=="01:28","warning countdown wrong")
 assert(fg.window.compactTiles.food.time.__text=="01:28","compact warning mismatch")
-assert(fg.window.iconTiles.food.colors,"icon border was not tinted")
+assert(fg.window.iconTiles.food.outline.edges.BOTTOM.colors,"icon border was not tinted")
 fg:Slash("demo off");assert(not fg.demo,"failed to resume live tracking")
 
 -- Live update and missing/unknown cases propagate to all three views.
@@ -362,6 +362,10 @@ assert(fg.classRows[1].__point[5]==-60 and fg.window.height==114,"compact row ga
 for _,side in ipairs({"TOP","BOTTOM","LEFT","RIGHT"}) do
   assert(fg.classRows[1].outline.edges[side] and fg.classOuterOutline.edges[side],"missing explicit border: "..side)
   assert(fg.classRows[1].outline.edges[side].colors,"untinted class border")
+  for _,key in ipairs({"food","bag","camp"}) do
+    assert(type(fg.window.compactTiles[key].outline.edges[side].colors)=="table","untinted core compact border: "..key.."/"..side)
+    assert(type(fg.window.iconTiles[key].outline.edges[side].colors)=="table","untinted core icon border: "..key.."/"..side)
+  end
 end
 aura.HELPFUL[1].name="Arcane Brilliance"
 fg:Refresh(true)
@@ -394,6 +398,10 @@ assert(fg:Remain(fg.classState.class_weapon_main)==90,"weapon milliseconds conve
 fg.classDB.enabled=false
 fg:Refresh(true)
 assert(fg.window.height==60,"disabled class buffs changed original layout")
+assert(fg.window.outline:IsShown(),"outer outline disappeared when class tracking disabled")
+for _,key in ipairs({"food","bag","camp"}) do
+  assert(type(fg.window.compactTiles[key].outline.edges.BOTTOM.colors)=="table","core bottom outline lost when class tracking disabled")
+end
 print("Food Guardian class buff mock: PASS")
 
 -- A later deliberate hide preference is retained rather than reset on every login.
