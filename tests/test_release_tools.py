@@ -4,10 +4,10 @@ from tempfile import TemporaryDirectory
 import sys
 import unittest
 from unittest.mock import patch
-import version as release_version
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import build
+import version as release_version
 
 
 class ManifestTests(unittest.TestCase):
