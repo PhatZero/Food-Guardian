@@ -29,3 +29,6 @@ Extract the official ZIP under WoW Forever's `Interface/AddOns/` directory so th
 
 ## Release pipeline
 Source is stored in `addon/` and GitHub Actions packages the same installable `FoodGuardian/` structure. CI runs Lua 5.1 syntax and mocked runtime tests. GitHub releases can optionally upload to CurseForge when Actions credentials are configured. See [publishing instructions](docs/RELEASING.md).
+
+### Combat-safe countdowns (1.0.3)
+New installations keep the tracker visible in combat. Existing users can run `/fg combat off` outside combat to enable it, or `/fg combat on` to hide it. Timers use the last readable aura snapshot and resynchronize when combat ends; changes during combat may not appear immediately. Configuration and minimap refreshes pause in combat.

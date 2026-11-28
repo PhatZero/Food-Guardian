@@ -80,7 +80,7 @@ end
 local bootstrap=created[1]
 bootstrap.scripts.OnEvent(bootstrap,"ADDON_LOADED","FoodGuardian")
 assert(fg.ready,"addon did not initialize")
-assert(fg.version=="1.0.2","incorrect version")
+assert(fg.version=="1.0.3","incorrect version")
 assert(fg.window and fg.settings and fg.minimap,"UI components not initialized")
 assert(fg.state.food.active and fg.state.bag.active and fg.state.camp.active and fg.state.tent.active,"auras not found")
 assert(fg.state.bag.stacks==3,"sleeping bag stacks not read")
@@ -146,6 +146,7 @@ assert(fg.minimap.shown==false,"minimap preference did not hide EllesmereUI butt
 fg.db.minimap=true
 fg:UpdateMinimap()
 assert(fg.minimap.shown==true,"minimap preference did not restore EllesmereUI button")
+fg.db.hideInCombat=true
 fg.inCombat=true
 fg:ApplyCombatVisibility()
 assert(fg.minimap.shown==false,"combat hiding did not apply to EllesmereUI button")
@@ -165,7 +166,8 @@ _G._EMM_DB=nil
 fg:UpdateMinimap()
 
 -- All addon UI hides in combat without changing the saved user preference.
-assert(fg.db.hideInCombat==true,"hide in combat should default on")
+assert(fg.defaults.hideInCombat==false,"visible combat timers should default on")
+fg.db.hideInCombat=true
 fg.settings:Show()
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
 assert(fg.inCombat and fg.window.shown==false and fg.minimap.shown==false and fg.settings.shown==false,
@@ -186,9 +188,38 @@ fg:ApplyCombatVisibility()
 fg:Slash("combat off")
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
 assert(fg.window.shown and fg.minimap.shown,"combat hide opt-out ignored")
-fg:Slash("combat on")
-assert(fg.window.shown==false and fg.minimap.shown==false,"combat hide re-enable ignored")
+-- No restricted scans or minimap updates while visible, even on aura events.
+local scanAuras,scanInventory,updateMinimap=fg.ScanAuras,fg.ScanInventory,fg.UpdateMinimap
+fg.ScanAuras=function() assert(not fg.inCombat,"aura scan in combat"); scanAuras(fg) end
+fg.ScanInventory=function() assert(not fg.inCombat,"inventory scan in combat"); scanInventory(fg) end
+fg.UpdateMinimap=function() assert(not fg.inCombat,"minimap update in combat"); updateMinimap(fg) end
+local savedPoint=fg.minimap.__point
+now=1100
+bootstrap.scripts.OnEvent(bootstrap,"UNIT_AURA","player")
+bootstrap.scripts.OnEvent(bootstrap,"BAG_UPDATE_DELAYED")
+bootstrap.scripts.OnUpdate(bootstrap,2.1)
+assert(fg.window.rows.food.time.__text=="08:20","cached timer failed")
+assert(fg.window.compactTiles.food.time.__text=="08:20","compact cache failed")
+assert(fg.minimap.__point==savedPoint,"minimap repositioned")
+assert(fg.window.rows.food.bar.value>0,"cached progress bar missing")
+fg:Slash("mode icons")
+assert(fg.db.mode=="full","combat mode change was allowed")
+now=1530
+bootstrap.scripts.OnUpdate(bootstrap,.2)
+assert(fg:Status("food")=="warning","combat warning missing")
+now=1601
+bootstrap.scripts.OnUpdate(bootstrap,.2)
+assert(fg:Status("food")=="missing","cached expiration not recognized")
+assert(fg.window.rows.food.time.__text=="MISSING","expired display stale")
+aura.HELPFUL[1].expirationTime=2500
+bootstrap.scripts.OnEvent(bootstrap,"UNIT_AURA","player")
+assert(fg:Status("food")=="missing","combat aura unexpectedly rescanned")
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
+assert(fg:Status("food")=="active","post-combat refresh failed")
+now=1000
+aura.HELPFUL[1].expirationTime=1600
+fg:Refresh(true)
+fg:Slash("combat on")
 assert(fg.window.shown and fg.minimap.shown and fg.db.hideInCombat,
   "combat state or preference not restored")
 assert(fg.settings.toggles.hideInCombat,"combat visibility setting missing")

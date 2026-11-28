@@ -48,7 +48,7 @@ local function smallButton(parent, iconIndex, tooltip, x, onClick)
   t:SetPoint("BOTTOMRIGHT", -3, 3)
   b.icon = t
   b:SetScript("OnEnter", function(self)
-    if GameTooltip then
+    if not FG.inCombat and GameTooltip then
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       GameTooltip:SetText(tooltip or "Control", 1, 0.83, 0.49)
       GameTooltip:Show()
@@ -56,10 +56,12 @@ local function smallButton(parent, iconIndex, tooltip, x, onClick)
     if self.SetBackdropBorderColor then self:SetBackdropBorderColor(0.97, 0.73, 0.35, 1) end
   end)
   b:SetScript("OnLeave", function(self)
-    if GameTooltip then GameTooltip:Hide() end
+    if not FG.inCombat and GameTooltip then GameTooltip:Hide() end
     if self.SetBackdropBorderColor then self:SetBackdropBorderColor(0.37, 0.29, 0.17, 1) end
   end)
-  b:SetScript("OnClick", onClick)
+  b:SetScript("OnClick", function(...)
+    if not FG.inCombat then onClick(...) end
+  end)
   return b
 end
 
@@ -125,7 +127,7 @@ local function createRow(parent, key, y)
 
   row:EnableMouse(true)
   row:SetScript("OnEnter", function(self)
-    if not GameTooltip then return end
+    if FG.inCombat or not GameTooltip then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(info.title, 1, 0.83, 0.49)
     GameTooltip:AddLine(info.help, 0.87, 0.87, 0.83, true)
@@ -140,7 +142,7 @@ local function createRow(parent, key, y)
     end
     GameTooltip:Show()
   end)
-  row:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+  row:SetScript("OnLeave", function() if not FG.inCombat and GameTooltip then GameTooltip:Hide() end end)
   return row
 end
 
@@ -170,6 +172,7 @@ local function modeTile(parent, key, i, style)
   end
 
   item:SetScript("OnClick", function(_, mouse)
+    if FG.inCombat then return end
     if mouse == "RightButton" then FG:CycleMode()
     elseif mouse == "MiddleButton" then FG:ToggleSettings()
     else FG:SetMode("full") end
@@ -183,7 +186,7 @@ local function modeTile(parent, key, i, style)
     if not FG.db.locked then FG:SavePosition() end
   end)
   item:SetScript("OnEnter", function(self)
-    if not GameTooltip then return end
+    if FG.inCombat or not GameTooltip then return end
     local data = FG:GetDisplayState()
     local aura = data[key] or {}
     local status = FG:Status(key)
@@ -201,7 +204,7 @@ local function modeTile(parent, key, i, style)
     GameTooltip:AddLine("Drag: Move  |  Middle click: Settings", .72, .75, .77)
     GameTooltip:Show()
   end)
-  item:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+  item:SetScript("OnLeave", function() if not FG.inCombat and GameTooltip then GameTooltip:Hide() end end)
   return item
 end
 
@@ -291,14 +294,14 @@ function FG:CreateUI()
   frame.tentTime:SetWidth(225)
   tent:EnableMouse(true)
   tent:SetScript("OnEnter", function(self)
-    if GameTooltip then
+    if not FG.inCombat and GameTooltip then
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       GameTooltip:SetText("Camp Tent · Boosted Rest", 1, 0.84, 0.49)
       GameTooltip:AddLine("The Boosted Rest debuff marks your Camp Tent rested-XP lockout. It is not the Camp Benefits buff.", .88, .88, .85, true)
       GameTooltip:Show()
     end
   end)
-  tent:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+  tent:SetScript("OnLeave", function() if not FG.inCombat and GameTooltip then GameTooltip:Hide() end end)
 
   frame.footer = font(frame, 10, self.colors.muted, "Drag title to move  •  Drag corner to resize")
   frame.footer:SetPoint("BOTTOMLEFT", 13, 12)
@@ -361,6 +364,7 @@ function FG:CreateUI()
 end
 
 function FG:ApplyLayout()
+  if self.inCombat and self.ready then return end
   if not self.window then return end
   local frame = self.window
   local mode = self.db.mode or "full"
@@ -436,7 +440,7 @@ function FG:UpdateUI()
     if row.SetBackdropBorderColor then row:SetBackdropBorderColor(tint[1] * .43, tint[2] * .43, tint[3] * .43, 0.75) end
     local detail = descriptions[key][status]
     if key == "bag" then
-      if aura.active then
+      if aura.active and status ~= "missing" then
         local stacks = math.max(0, math.min(3, self:SafeNumber(aura.stacks) or 0))
         detail = string.format("Sleeping Bag (%d/3 Stacks)", stacks)
       elseif not data.bagOwned and status == "missing" then
@@ -482,21 +486,24 @@ function FG:UpdateUI()
   local summaryTint = present == 3 and self.colors.green or present == 0 and self.colors.red or self.colors.amber
   frame.summaryText:SetText(string.format("%d / 3 BUFFS PRESENT", present))
   color(frame.summaryText, summaryTint)
-  frame.summaryRight:SetText(self.demo and "DEMO PREVIEW" or self.auraReadFailed and "AURA API LIMITED" or "LIVE TRACKING")
+  frame.summaryRight:SetText(self.demo and "DEMO PREVIEW" or self.inCombat and "CACHED TIMERS" or self.auraReadFailed and "AURA API LIMITED" or "LIVE TRACKING")
   color(frame.summaryRight, self.demo and self.colors.cyan or self.colors.muted)
   local tent = data.tent or {}
-  if tent.active then
-    frame.tentTime:SetText("Boosted Rest  ·  " .. self:FormatTime(self:Remain(tent)))
+  local tentRemaining = self:Remain(tent)
+  if tent.active and (not tentRemaining or tentRemaining > 0) then
+    frame.tentTime:SetText("Boosted Rest  ·  " .. self:FormatTime(tentRemaining))
     color(frame.tentTime, self.colors.amber)
-  elseif self.auraReadFailed and not self.demo then
+  elseif (self.auraReadFailed or not self.scannedOnce) and not self.demo then
     frame.tentTime:SetText("Lockout unavailable")
     color(frame.tentTime, self.colors.muted)
   else
     frame.tentTime:SetText("No Boosted Rest lockout")
     color(frame.tentTime, self.colors.green)
   end
-  frame.tent:SetShown(self.db.mode == "full" and self.db.showTent)
-  frame.grip:SetShown(self.db.mode == "full" and not self.db.locked)
+  if not self.inCombat then
+    frame.tent:SetShown(self.db.mode == "full" and self.db.showTent)
+    frame.grip:SetShown(self.db.mode == "full" and not self.db.locked)
+  end
   if frame.SetBackdropBorderColor then
     if hasWarning and self.db.flash then
       frame:SetBackdropBorderColor(.9, .43 + .24 * math.abs(math.sin(self:Now() * 5)), .13, 1)
@@ -506,7 +513,9 @@ function FG:UpdateUI()
       frame:SetBackdropBorderColor(.77, .57, .29, 1)
     end
   end
-  if self.db.locked then
+  if self.inCombat then
+    frame.footer:SetText("Combat: cached timers  •  Resync after combat")
+  elseif self.db.locked then
     frame.footer:SetText("Window locked  •  /fg lock to unlock")
   elseif hasWarning then
     frame.footer:SetText("Amber: expiring soon  •  Red: missing")
