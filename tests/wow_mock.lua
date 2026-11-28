@@ -10,6 +10,9 @@ function methods:CreateTexture() return setmetatable({},mockMT) end
 function methods:CreateFontString() return setmetatable({},mockMT) end
 function methods:SetText(v) self.__text=v end
 function methods:GetText() return self.__text end
+function methods:SetFont(face,size,flags) self.fontSize=size end
+function methods:GetStringWidth() return #(rawget(self,"__text") or "")*(rawget(self,"fontSize") or 10)*.61 end
+function methods:SetWordWrap(wrap) self.wrap=wrap end
 function methods:GetFrameLevel() return 1 end
 function methods:GetCenter() return 400,400 end
 function methods:GetParent() return self.parent end
@@ -87,7 +90,7 @@ assert(fg.db.hideInCombat==false and fg.db.combatVisibilityVersion==1,"legacy hi
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
 assert(fg.window:IsShown(),"migrated tracker still hides in combat")
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
-assert(fg.version=="1.1b6","incorrect version")
+assert(fg.version=="1.1b7","incorrect version")
 assert(fg.window and fg.settings and fg.minimap,"UI components not initialized")
 assert(fg.state.food.active and fg.state.bag.active and fg.state.camp.active and fg.state.tent.active,"auras not found")
 assert(fg.state.bag.stacks==3,"sleeping bag stacks not read")
@@ -350,8 +353,16 @@ fg:SetMode("compact")
 assert(fg.window.height>60,"class compact rows absent")
 assert(fg.classRows[1].width==128 and fg.classRows[2].width==128,"class tiles must match core compact tile width")
 assert(fg.classRows[1].__point[4]==71 and fg.classRows[2].__point[4]==203,"two compact tiles must be centered, not stretched")
-assert(fg.classRows[1].height==46 and fg.classRows[1].icon.width==30,"class tile geometry differs from reference")
-assert(fg.classRows[1].__point[5]==-59 and fg.window.height==110,"compact row gaps or window height wrong")
+assert(fg.classRows[1].height==46 and fg.classRows[1].icon.width==28,"class tile geometry differs from reference")
+assert(fg.classRows[1].__point[5]==-60 and fg.window.height==114,"compact row gaps or window height wrong")
+for _,side in ipairs({"TOP","BOTTOM","LEFT","RIGHT"}) do
+  assert(fg.classRows[1].outline.edges[side] and fg.classOuterOutline.edges[side],"missing explicit border: "..side)
+  assert(fg.classRows[1].outline.edges[side].colors,"untinted class border")
+end
+aura.HELPFUL[1].name="Arcane Brilliance"
+fg:Refresh(true)
+assert(fg.classRows[1].title.__text=="Arcane Brilliance","full buff name not retained")
+assert(fg.classRows[1].title.fontSize<10,"long name should fit by reducing font size")
 assert(fg.classRows[1].__point[5]==fg.classRows[2].__point[5],"two tiles should share a row")
 fg:SetMode("icons")
 assert(fg.classRows[1].icon and not fg.classRows[1].time.shown,"class icon row incorrect")
@@ -412,7 +423,7 @@ for _,mode in ipairs({"full","compact","icons"}) do
       local x=math.floor((width-count*tile-(count-1)*gap)/2)+((i-1)%columns)*(tile+gap)
       assert(row.width==tile and row.__point[4]==x,"inconsistent class tile spacing")
       assert(row.height==(mode=="icons" and 51 or 46),"inconsistent tile height")
-      assert(row.icon.width==(mode=="icons" and 43 or 30),"inconsistent icon size")
+      assert(row.icon.width==(mode=="icons" and 43 or 28),"inconsistent icon size")
       assert(row.__point[4]>=0 and row.__point[4]+row.width<=width,"class tile outside frame")
       assert(-row.__point[5]+row.height<=fg.window.height,"class tile below frame")
       if i>columns then assert(row.__point[5]<fg.classRows[i-columns].__point[5],"class tile did not wrap") end

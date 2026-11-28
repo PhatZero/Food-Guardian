@@ -252,7 +252,7 @@ function FG:CreateUI()
   frame.crest = crest
   frame.heading = font(header, 19, self.colors.bright, "Food Guardian")
   frame.heading:SetPoint("TOPLEFT", 50, -8)
-  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b6")
+  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b7")
   frame.subtitle:SetPoint("TOPLEFT", 51, -30)
 
   frame.closeButton = smallButton(header, 0, "Close tracker (reopen with /fg)", -10, function() FG:ToggleWindow() end)
@@ -536,21 +536,81 @@ function FG:ApplyLayout()
   end
 end
 
+-- Explicit four-sided borders: the resized BackdropTemplate can lose edges
+-- on fractional UI scales. Anchor ordinary textures to the actual frame.
+local function makeOutline(parent, thickness)
+  local outline=CreateFrame("Frame",nil,parent)
+  outline:SetAllPoints(parent)
+  outline:SetFrameLevel(parent:GetFrameLevel()+8)
+  outline:EnableMouse(false)
+  outline.edges={}
+  for _,side in ipairs({"TOP","BOTTOM","LEFT","RIGHT"}) do
+    local edge=outline:CreateTexture(nil,"OVERLAY")
+    edge:SetTexture("Interface\\Buttons\\WHITE8X8")
+    if side=="TOP" or side=="BOTTOM" then
+      edge:SetPoint(side.."LEFT",outline,side.."LEFT",0,0)
+      edge:SetPoint(side.."RIGHT",outline,side.."RIGHT",0,0)
+      edge:SetHeight(thickness)
+    else
+      edge:SetPoint("TOP"..side,outline,"TOP"..side,0,0)
+      edge:SetPoint("BOTTOM"..side,outline,"BOTTOM"..side,0,0)
+      edge:SetWidth(thickness)
+    end
+    if edge.SetSnapToPixelGrid then edge:SetSnapToPixelGrid(false) end
+    if edge.SetTexelSnappingBias then edge:SetTexelSnappingBias(0) end
+    outline.edges[side]=edge
+  end
+  return outline
+end
+
+local function paintOutline(outline,tint)
+  for _,edge in pairs(outline.edges) do
+    edge:SetVertexColor(tint[1],tint[2],tint[3],1)
+  end
+end
+
+local function fitClassTitle(row,label)
+  if row.fittedName==label then return end
+  row.fittedName=label
+  local face=STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+  local size=10
+  local available=91
+  row.measure:SetText(label)
+  row.measure:SetFont(face,size,"OUTLINE")
+  local width=row.measure:GetStringWidth()
+  if type(width)=="number" and width>available then
+    size=math.max(8,math.floor(size*available/width*2)/2)
+    row.measure:SetFont(face,size,"OUTLINE")
+    width=row.measure:GetStringWidth()
+  end
+  local wraps=type(width)=="number" and width>available
+  row.title:SetFont(face,size,"OUTLINE")
+  if row.title.SetWordWrap then row.title:SetWordWrap(wraps) end
+  row.title:SetHeight(wraps and 22 or 14)
+  row.title:SetText(label)
+end
+
 local function newClassTile(fg)
-  local row=CreateFrame("Button",nil,fg.window,"BackdropTemplate")
-  fg:SkinPanel(row,true)
+  local row=CreateFrame("Button",nil,fg.window)
+  row:SetFrameLevel(fg.window:GetFrameLevel()+3)
+  local bg=row:CreateTexture(nil,"BACKGROUND")
+  bg:SetAllPoints(row)
+  bg:SetColorTexture(.035,.045,.060,.96)
+  row.outline=makeOutline(row,1.5)
   row.icon=row:CreateTexture(nil,"ARTWORK")
-  row.icon:SetSize(30,30)
-  row.icon:SetPoint("LEFT",5,0)
+  row.icon:SetSize(28,28)
+  row.icon:SetPoint("LEFT",4,0)
   row.title=fg.Font(row,10,fg.colors.ivory,"","LEFT")
-  row.title:SetPoint("TOPLEFT",40,-6)
-  row.title:SetPoint("TOPRIGHT",-6,-6)
-  row.title:SetHeight(13)
+  row.title:SetPoint("TOPLEFT",row,"TOPLEFT",35,-5)
+  row.title:SetPoint("TOPRIGHT",row,"TOPRIGHT",-2,-5)
+  row.title:SetHeight(14)
   if row.title.SetWordWrap then row.title:SetWordWrap(false) end
+  row.measure=fg.Font(row,10,fg.colors.ivory,"")
+  row.measure:Hide()
   -- Match reference: name top-left, countdown bottom-right.
   row.time=fg.Font(row,12,fg.colors.green,"","RIGHT")
-  row.time:SetPoint("BOTTOMLEFT",40,5)
-  row.time:SetPoint("BOTTOMRIGHT",-7,5)
+  row.time:SetPoint("BOTTOMLEFT",row,"BOTTOMLEFT",35,5)
+  row.time:SetPoint("BOTTOMRIGHT",row,"BOTTOMRIGHT",-7,5)
   row.time:SetHeight(16)
   row:RegisterForClicks("LeftButtonUp","RightButtonUp","MiddleButtonUp")
   row:RegisterForDrag("LeftButton")
@@ -591,7 +651,12 @@ function FG:LayoutClassRows()
   local gap=mode=="icons" and 5 or 4
   local tileWidth=mode=="icons" and 51 or 128
   local tileHeight=mode=="icons" and 51 or 46
-  local top=mode=="full" and 365 or 59
+  local top=mode=="full" and 365 or 60
+  if #list>0 and not self.classOuterOutline then
+    self.classOuterOutline=makeOutline(self.window,1.5)
+    paintOutline(self.classOuterOutline,self.colors.gold)
+  end
+  if self.classOuterOutline then self.classOuterOutline:SetShown(#list>0) end
   for i,d in ipairs(list) do
     local row=self.classRows[i]
     if not row then row=newClassTile(self); self.classRows[i]=row end
@@ -604,15 +669,17 @@ function FG:LayoutClassRows()
     row:SetPoint("TOPLEFT",self.window,"TOPLEFT",startX+((i-1)%columns)*(tileWidth+gap),
       -top-line*(tileHeight+gap))
     row:SetSize(tileWidth,tileHeight)
-    local iconSize=mode=="icons" and 43 or 30
+    local iconSize=mode=="icons" and 43 or 28
     row.icon:SetSize(iconSize,iconSize)
+    row.icon:ClearAllPoints()
+    row.icon:SetPoint("LEFT",row,"LEFT",mode=="icons" and 4 or 4,0)
     row.title:SetShown(mode~="icons")
     row.time:SetShown(mode~="icons")
     row:Show()
   end
   for i=#list+1,#self.classRows do self.classRows[i]:Hide(); self.classRows[i].buffKey=nil end
   local lines=math.ceil(#list/columns)
-  local bottom=mode=="full" and 30 or 5
+  local bottom=mode=="full" and 30 or 8
   local height=lines>0 and (top+lines*tileHeight+(lines-1)*gap+bottom) or base
   self.window:SetSize(width,height)
 end
@@ -627,13 +694,13 @@ function FG:UpdateUI()
       local a=self.classState[row.buffKey] or {}
       local status=self:ClassStatus(row.buffKey)
       local tint=status=="active" and self.colors.green or status=="warning" and self.colors.amber or status=="missing" and self.colors.red or self.colors.muted
-      row.title:SetText(a.name or row.buffKey)
+      if not self.inCombat then fitClassTitle(row,a.name or row.buffKey) end
       row.time:SetText((status=="active" or status=="warning") and self:FormatTime(self:Remain(a)) or status:upper())
       row.time:SetTextColor(tint[1],tint[2],tint[3],1)
       row.icon:SetTexture(a.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
       local flash=self.db.flash and (status=="warning" or status=="missing")
       row.icon:SetAlpha(flash and (.65+.35*math.abs(math.sin(self:Now()*5))) or 1)
-      if row.SetBackdropBorderColor then row:SetBackdropBorderColor(tint[1],tint[2],tint[3],1) end
+      paintOutline(row.outline,tint)
     end
   end
 end

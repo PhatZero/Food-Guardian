@@ -1,3 +1,10 @@
+## 1.1b7 — Class tile border and text rendering fix
+
+- Draw explicit four-sided class tile and tracker borders with dedicated textures instead of relying on resized backdrops.
+- Fit buff names to their available width, wrapping longer names when necessary.
+- Reserve bottom padding and keep centered 128px tiles and right-aligned countdowns.
+- Add border, text-fitting and geometry regression tests.
+
 ## 1.1b6 — Reference-matched centered class tiles
 
 - Match optional tile width to the original 128px core tiles.
