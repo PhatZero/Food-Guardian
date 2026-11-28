@@ -252,7 +252,7 @@ function FG:CreateUI()
   frame.crest = crest
   frame.heading = font(header, 19, self.colors.bright, "Food Guardian")
   frame.heading:SetPoint("TOPLEFT", 50, -8)
-  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b3")
+  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b4")
   frame.subtitle:SetPoint("TOPLEFT", 51, -30)
 
   frame.closeButton = smallButton(header, 0, "Close tracker (reopen with /fg)", -10, function() FG:ToggleWindow() end)
@@ -584,12 +584,13 @@ function FG:LayoutClassRows()
   self.classLayoutSignature=signature
   local width=mode=="full" and 414 or mode=="compact" and 402 or 174
   local base=mode=="full" and 390 or 60
-  -- Match the core compact/icon tile widths; keep a uniform three-column grid.
-  -- Never stretch the final one or two tiles to fill an incomplete row.
-  local columns=3
-  local tileWidth=mode=="icons" and 51 or 128
-  local tileHeight=mode=="icons" and 51 or 50
-  local gap=mode=="icons" and 5 or 4
+  -- Keep the three core tiles intact. Named class tiles use two across,
+  -- with a centered half-width tile on an incomplete final row.
+  -- Icon mode keeps its three square icons per row.
+  local columns=mode=="icons" and 3 or 2
+  local gap=mode=="icons" and 5 or 6
+  local tileWidth=mode=="icons" and 51 or math.floor((width-12-gap)/2)
+  local tileHeight=mode=="icons" and 51 or 38
   local top=mode=="full" and 365 or 59
   for i,d in ipairs(list) do
     local row=self.classRows[i]

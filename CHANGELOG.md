@@ -1,3 +1,9 @@
+## 1.1b4 — Two-column class buff layout
+
+- Keep the three main buffs on their original row; optional named buffs use two equal-width tiles per row.
+- Center a single remaining half-width tile; preserve square three-column icon mode.
+- Keep consistent spacing and separate name/timer lines; update layout regression tests.
+
 ## 1.1b3 — Uniform class buff layout
 
 - Use three consistently sized class buff tiles per row, matching compact and icon widths.
