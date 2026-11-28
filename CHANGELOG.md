@@ -1,3 +1,10 @@
+## 1.1b6 — Reference-matched centered class tiles
+
+- Match optional tile width to the original 128px core tiles.
+- Center one or two buffs underneath the main row; wrap after three.
+- Restore bottom-right timers and smaller icons as shown in the approved reference.
+- Preserve combat behavior and add exact geometry checks for two centered tiles.
+
 ## 1.1b5 — Visible compact layout redesign
 
 - Match class tile height and icon scale to the core compact buff tiles.

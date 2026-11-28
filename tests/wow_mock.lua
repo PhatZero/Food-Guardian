@@ -87,7 +87,7 @@ assert(fg.db.hideInCombat==false and fg.db.combatVisibilityVersion==1,"legacy hi
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
 assert(fg.window:IsShown(),"migrated tracker still hides in combat")
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
-assert(fg.version=="1.1b5","incorrect version")
+assert(fg.version=="1.1b6","incorrect version")
 assert(fg.window and fg.settings and fg.minimap,"UI components not initialized")
 assert(fg.state.food.active and fg.state.bag.active and fg.state.camp.active and fg.state.tent.active,"auras not found")
 assert(fg.state.bag.stacks==3,"sleeping bag stacks not read")
@@ -348,10 +348,10 @@ fg:SetMode("full")
 assert(fg.window.height>390 and fg.classRows[1].time.__text=="05:00","class full rows absent")
 fg:SetMode("compact")
 assert(fg.window.height>60,"class compact rows absent")
-assert(fg.classRows[1].width==194 and fg.classRows[2].width==194,"class tiles should be equal half widths")
-assert(fg.classRows[1].__point[4]==5 and fg.classRows[2].__point[4]==203,"two compact tiles should match the core outer margins")
-assert(fg.classRows[1].height==50 and fg.classRows[1].icon.width==42,"class tile must match core height and icon size")
-assert(fg.classRows[1].__point[5]==-59 and fg.window.height==114,"compact row gaps or window height wrong")
+assert(fg.classRows[1].width==128 and fg.classRows[2].width==128,"class tiles must match core compact tile width")
+assert(fg.classRows[1].__point[4]==71 and fg.classRows[2].__point[4]==203,"two compact tiles must be centered, not stretched")
+assert(fg.classRows[1].height==46 and fg.classRows[1].icon.width==30,"class tile geometry differs from reference")
+assert(fg.classRows[1].__point[5]==-59 and fg.window.height==110,"compact row gaps or window height wrong")
 assert(fg.classRows[1].__point[5]==fg.classRows[2].__point[5],"two tiles should share a row")
 fg:SetMode("icons")
 assert(fg.classRows[1].icon and not fg.classRows[1].time.shown,"class icon row incorrect")
@@ -395,9 +395,9 @@ local originalVisible=fg.ClassVisible
 for _,mode in ipairs({"full","compact","icons"}) do
   fg.db.mode=mode
   local width=mode=="full" and 414 or mode=="compact" and 402 or 174
-  local columns=mode=="icons" and 3 or 2
+  local columns=3
   local gap=mode=="icons" and 5 or 4
-  local tile=mode=="icons" and 51 or math.floor((width-10-gap)/2)
+  local tile=mode=="icons" and 51 or 128
   for n=0,8 do
     fg.ClassVisible=function()
       local d={}
@@ -411,8 +411,8 @@ for _,mode in ipairs({"full","compact","icons"}) do
       local count=math.min(columns,n-line*columns)
       local x=math.floor((width-count*tile-(count-1)*gap)/2)+((i-1)%columns)*(tile+gap)
       assert(row.width==tile and row.__point[4]==x,"inconsistent class tile spacing")
-      assert(row.height==(mode=="icons" and 51 or 50),"inconsistent tile height")
-      assert(row.icon.width==(mode=="icons" and 43 or 42),"inconsistent icon size")
+      assert(row.height==(mode=="icons" and 51 or 46),"inconsistent tile height")
+      assert(row.icon.width==(mode=="icons" and 43 or 30),"inconsistent icon size")
       assert(row.__point[4]>=0 and row.__point[4]+row.width<=width,"class tile outside frame")
       assert(-row.__point[5]+row.height<=fg.window.height,"class tile below frame")
       if i>columns then assert(row.__point[5]<fg.classRows[i-columns].__point[5],"class tile did not wrap") end
