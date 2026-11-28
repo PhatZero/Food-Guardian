@@ -1,3 +1,10 @@
+## 1.1b1 — Class buff QA preview
+
+- Optional per-character class, external and custom helpful aura tracking.
+- Group alternative buffs, track temporary weapon enhancements per hand, and configure missing/expiration warnings.
+- Extend all three display modes with cached combat timers.
+- Add class buff mock coverage; live Forever QA pending.
+
 # Food Guardian 1.0.3: Combat-Safe Countdown (QA)
 
 - Keep the tracker visible during combat using cached buff expiration times.

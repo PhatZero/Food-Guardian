@@ -1,6 +1,6 @@
 local addonName, FG = ...
 FG.name = addonName
-FG.version = "1.0.3"
+FG.version = "1.1b1"
 FG.targetInterface = 16001
 FG.items = { sleepingBag = 211527 }
 FG.spells = { sleepingBag = 429959, camp = 1229741, tent = 1229451 }
@@ -134,6 +134,11 @@ function FG:NotifyTransitions()
       playWarning = true
     end
     self.lastStatuses[key] = status
+  end
+  for _, d in ipairs(self:ClassSelected()) do
+    local status=self:ClassStatus(d.key)
+    if self.db.sound and self.lastStatuses[d.key]=="active" and (status=="warning" or status=="missing") then playWarning=true end
+    self.lastStatuses[d.key]=status
   end
   -- One chime even if multiple buffs expire simultaneously.
   if playWarning and PlaySound then
@@ -305,13 +310,18 @@ function FG:Debug()
 end
 
 function FG:Slash(message)
-  local cmd, value = string.match(string.lower(message or ""), "^%s*(%S*)%s*(.-)%s*$")
+  local rawCmd, rawValue = string.match(message or "", "^%s*(%S*)%s*(.-)%s*$")
+  local cmd, value = rawCmd:lower(), rawValue:lower()
   if self.inCombat and cmd ~= "debug" and cmd ~= "protected" and cmd ~= "taint" then
     self:Print("Tracker controls are locked until combat ends.")
     return
   end
   if cmd == "" or cmd == "toggle" then
     self:ToggleWindow()
+  elseif cmd == "buffadd" then
+    self:Print(self:AddClassBuff(rawValue) and "Custom buff added." or "Unable to add buff (duplicate, invalid, or limit of 8).")
+  elseif cmd == "buffremove" then
+    self:Print(self:RemoveClassBuff(rawValue) and "Custom buff removed." or "Custom buff not found.")
   elseif cmd == "settings" or cmd == "options" then
     self:ToggleSettings()
   elseif cmd == "show" then
@@ -371,6 +381,7 @@ function FG:Init()
   end
   self.db.compact = nil
   self.charDB = FoodGuardianCharDB
+  self:InitClassBuffs()
   self.db.foodWarning = math.max(30, math.min(1800, self:SafeNumber(self.db.foodWarning) or 180))
   self.db.bagWarning = math.max(30, math.min(1800, self:SafeNumber(self.db.bagWarning) or 600))
   self.db.campWarning = math.max(30, math.min(1800, self:SafeNumber(self.db.campWarning) or 600))
@@ -386,7 +397,7 @@ function FG:Init()
   if type(SlashCmdList) == "table" then
     SlashCmdList.FOODGUARDIAN = function(text) FG:Slash(text) end
   end
-  self:Print("v1.0.3 ready. /fg mode full|compact|icons; /fg settings for options.")
+  self:Print("v1.1b1 ready. /fg mode full|compact|icons; /fg settings for options.")
   self:ApplyCombatVisibility()
 end
 

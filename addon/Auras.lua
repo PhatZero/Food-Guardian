@@ -67,6 +67,7 @@ function FG:ScanAuras()
   local results = { food = { active = false }, bag = { active = false },
     camp = { active = false }, tent = { active = false } }
   local failed = false
+  local helpful = {}
   for _, filter in ipairs({ "HELPFUL", "HARMFUL" }) do
     local modern = type(C_UnitAuras) == "table" and type(C_UnitAuras.GetAuraDataByIndex) == "function"
     local legacy = (filter == "HELPFUL" and type(UnitBuff) == "function") or
@@ -89,6 +90,7 @@ function FG:ScanAuras()
         if not raw then break end
         local entry = extractAura(raw)
         if entry.opaque then failed = true end
+        if filter == "HELPFUL" then helpful[#helpful+1] = entry end
         local key = matchEffect(entry, filter)
         if key and preferNew(results[key].active and results[key] or nil, entry) then
           results[key] = entry
@@ -100,4 +102,5 @@ function FG:ScanAuras()
     self.state[key] = results[key]
   end
   self.auraReadFailed = failed
+  self:ScanClassBuffs(helpful, failed)
 end

@@ -73,14 +73,15 @@ C_Container={GetContainerNumSlots=function(bag) return bag==0 and 1 or 0 end,
  GetContainerItemID=function() return 211527 end,
  GetContainerItemCooldown=function() return 800,1200,1 end}
 
+UnitClass=function() return "Mage","MAGE" end
 local fg={}
-for _, path in ipairs({"Core.lua","Auras.lua","Inventory.lua","UI.lua","Settings.lua","Minimap.lua"}) do
+for _, path in ipairs({"Core.lua","ClassBuffs.lua","Auras.lua","Inventory.lua","UI.lua","Settings.lua","Minimap.lua"}) do
   local f,err=loadfile(root.."/"..path);assert(f,err);f("FoodGuardian",fg)
 end
 local bootstrap=created[1]
 bootstrap.scripts.OnEvent(bootstrap,"ADDON_LOADED","FoodGuardian")
 assert(fg.ready,"addon did not initialize")
-assert(fg.version=="1.0.3","incorrect version")
+assert(fg.version=="1.1b1","incorrect version")
 assert(fg.window and fg.settings and fg.minimap,"UI components not initialized")
 assert(fg.state.food.active and fg.state.bag.active and fg.state.camp.active and fg.state.tent.active,"auras not found")
 assert(fg.state.bag.stacks==3,"sleeping bag stacks not read")
@@ -321,3 +322,49 @@ assert(fg:Status("camp")=="unknown" and fg.window.rows.camp.time.__text=="UNKNOW
  "unreadable aura must not become missing")
 assert(fg.window.compactTiles.food.time.__text=="?","unknown compact status wrong")
 print("Food Guardian mock runtime: PASS (three modes, buffs, combat concealment, minimap rim, settings)")
+
+
+-- Optional class tracking stays off by default and preserves existing dimensions.
+assert(not fg.classDB.enabled,"class buffs must default off")
+C_UnitAuras.GetAuraDataByIndex=function(unit,i,filter) assert(not fg.inCombat); return aura[filter][i] end
+now=2000
+aura.HELPFUL={{name="Arcane Brilliance",spellId=23028,icon=2,duration=3600,expirationTime=2300},
+  {name="Ice Armor",spellId=7302,icon=3,duration=1800,expirationTime=0},
+  {name="Custom Test",spellId=90001,icon=4,duration=120,expirationTime=2120}}
+fg.classDB.enabled=true
+fg.classDB.selected.class_intellect=true
+fg.classDB.selected.class_armor=true
+fg:Refresh(true)
+assert(fg:ClassStatus("class_intellect")=="active","intellect alias not recognized")
+assert(fg:ClassStatus("class_armor")=="active","permanent armor not recognized")
+assert(#fg:ClassVisible()==2,"class selections not respected")
+fg:SetMode("full")
+assert(fg.window.height>390 and fg.classRows[1].time.__text=="05:00","class full rows absent")
+fg:SetMode("compact")
+assert(fg.window.height>60,"class compact rows absent")
+fg:SetMode("icons")
+assert(fg.classRows[1].icon and not fg.classRows[1].time.shown,"class icon row incorrect")
+assert(fg:AddClassBuff("90001"),"custom ID not accepted")
+assert(fg:ClassStatus("class_custom_90001")=="active","custom ID not matched")
+assert(not fg:AddClassBuff("90001"),"duplicate custom allowed")
+assert(fg:RemoveClassBuff("90001"),"custom removal failed")
+fg.db.hideInCombat=false
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
+now=2250
+fg:Refresh(true)
+assert(fg:ClassStatus("class_intellect")=="warning","cached class countdown failed")
+aura.HELPFUL[1].expirationTime=5000
+now=2301
+fg:Refresh(true)
+assert(fg:ClassStatus("class_intellect")=="missing","cached expiration failed")
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
+assert(fg:ClassStatus("class_intellect")=="active","post-combat class resync failed")
+fg.classDB.selected.class_weapon_main=true
+GetWeaponEnchantInfo=function() return true,90000,0,123,false,0,0,nil end
+fg:Refresh(true)
+assert(fg:ClassStatus("class_weapon_main")=="active","weapon timer missing")
+assert(fg:Remain(fg.classState.class_weapon_main)==90,"weapon milliseconds conversion failed")
+fg.classDB.enabled=false
+fg:Refresh(true)
+assert(fg.window.height==60,"disabled class buffs changed original layout")
+print("Food Guardian class buff mock: PASS")
