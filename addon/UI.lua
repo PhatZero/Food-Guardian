@@ -146,16 +146,52 @@ local function createRow(parent, key, y)
   return row
 end
 
+-- Explicit four-sided borders: the resized BackdropTemplate can lose edges
+-- on fractional UI scales. Anchor ordinary textures to the actual frame.
+local function makeOutline(parent, thickness)
+  local outline=CreateFrame("Frame",nil,parent)
+  outline:SetAllPoints(parent)
+  outline:SetFrameLevel(parent:GetFrameLevel()+8)
+  outline:EnableMouse(false)
+  outline.edges={}
+  for _,side in ipairs({"TOP","BOTTOM","LEFT","RIGHT"}) do
+    local edge=outline:CreateTexture(nil,"OVERLAY")
+    edge:SetTexture("Interface\\Buttons\\WHITE8X8")
+    if side=="TOP" or side=="BOTTOM" then
+      edge:SetPoint(side.."LEFT",outline,side.."LEFT",0,0)
+      edge:SetPoint(side.."RIGHT",outline,side.."RIGHT",0,0)
+      edge:SetHeight(thickness)
+    else
+      edge:SetPoint("TOP"..side,outline,"TOP"..side,0,0)
+      edge:SetPoint("BOTTOM"..side,outline,"BOTTOM"..side,0,0)
+      edge:SetWidth(thickness)
+    end
+    if edge.SetSnapToPixelGrid then edge:SetSnapToPixelGrid(false) end
+    if edge.SetTexelSnappingBias then edge:SetTexelSnappingBias(0) end
+    outline.edges[side]=edge
+  end
+  return outline
+end
+
+local function paintOutline(outline,tint,alpha)
+  for _,edge in pairs(outline.edges) do
+    edge:SetVertexColor(tint[1],tint[2],tint[3],alpha or 1)
+  end
+end
+
 -- A truly different layout for each concept view. No header or labels in the two minimal views.
 local function modeTile(parent, key, i, style)
   local bar = style == "compact"
-  local item = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  local item = CreateFrame("Button", nil, parent)
   local tileWidth = bar and 128 or 51
   local tileHeight = bar and 50 or 51
   item:SetSize(tileWidth, tileHeight)
   item:SetPoint("TOPLEFT", bar and (5 + (i - 1) * 132) or (5 + (i - 1) * 56), -5)
-  FG:SkinPanel(item, true)
-  if item.SetBackdropBorderColor then item:SetBackdropBorderColor(.73, .54, .30, 1) end
+  local background=item:CreateTexture(nil,"BACKGROUND")
+  background:SetAllPoints(item)
+  background:SetColorTexture(.035,.045,.060,.96)
+  item.outline=makeOutline(item,1.5)
+  paintOutline(item.outline,FG.colors.gold)
   item:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp")
   item:RegisterForDrag("LeftButton")
   item:EnableMouse(true)
@@ -218,8 +254,13 @@ function FG:CreateUI()
   frame:SetMovable(true)
   frame:EnableMouse(true)
   self:SkinPanel(frame, true)
-  if frame.SetBackdropBorderColor then frame:SetBackdropBorderColor(0.75, 0.55, 0.26, 1) end
+  -- Explicit outer border stays intact in every layout, including no class buffs.
+  if frame.SetBackdropBorderColor then frame:SetBackdropBorderColor(0,0,0,0) end
+  frame.outline=makeOutline(frame,1.5)
+  paintOutline(frame.outline,self.colors.gold)
   self.window = frame
+  self.classOuterOutline = frame.outline
+  self.classLayoutSignature = nil
 
   frame.topRule = solid(frame, 1, 2, self.colors.gold, .65)
   frame.topRule:SetPoint("TOPLEFT", 1, -49)
@@ -252,7 +293,7 @@ function FG:CreateUI()
   frame.crest = crest
   frame.heading = font(header, 19, self.colors.bright, "Food Guardian")
   frame.heading:SetPoint("TOPLEFT", 50, -8)
-  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.0.1")
+  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b9")
   frame.subtitle:SetPoint("TOPLEFT", 51, -30)
 
   frame.closeButton = smallButton(header, 0, "Close tracker (reopen with /fg)", -10, function() FG:ToggleWindow() end)
@@ -456,12 +497,8 @@ function FG:UpdateUI()
     pcall(function() row.icon:SetTexture(icon) end)
     compact.time:SetText(label == "MISSING" and "NONE" or label == "UNKNOWN" and "?" or label)
     color(compact.time, tint)
-    if compact.SetBackdropBorderColor then
-      compact:SetBackdropBorderColor(tint[1], tint[2], tint[3], 1)
-    end
-    if iconTile.SetBackdropBorderColor then
-      iconTile:SetBackdropBorderColor(tint[1], tint[2], tint[3], 1)
-    end
+    paintOutline(compact.outline,tint)
+    paintOutline(iconTile.outline,tint)
     pcall(function() compact.icon:SetTexture(icon) end)
     pcall(function() iconTile.icon:SetTexture(icon) end)
     if self.db.flash and (status == "warning" or status == "missing") then
@@ -470,12 +507,9 @@ function FG:UpdateUI()
       iconTile.icon:SetAlpha(.65 + .35 * math.abs(math.sin(self:Now() * 5)))
       row.glow:Show()
       row.glow:SetAlpha(pulse)
-      if compact.SetBackdropBorderColor then
-        compact:SetBackdropBorderColor(tint[1], tint[2], tint[3], .55 + .45 * math.abs(math.sin(self:Now() * 5)))
-      end
-      if iconTile.SetBackdropBorderColor then
-        iconTile:SetBackdropBorderColor(tint[1], tint[2], tint[3], .55 + .45 * math.abs(math.sin(self:Now() * 5)))
-      end
+      local borderAlpha=.55+.45*math.abs(math.sin(self:Now()*5))
+      paintOutline(compact.outline,tint,borderAlpha)
+      paintOutline(iconTile.outline,tint,borderAlpha)
     else
       row.icon:SetAlpha(1)
       compact.icon:SetAlpha(1)
@@ -504,14 +538,12 @@ function FG:UpdateUI()
     frame.tent:SetShown(self.db.mode == "full" and self.db.showTent)
     frame.grip:SetShown(self.db.mode == "full" and not self.db.locked)
   end
-  if frame.SetBackdropBorderColor then
-    if hasWarning and self.db.flash then
-      frame:SetBackdropBorderColor(.9, .43 + .24 * math.abs(math.sin(self:Now() * 5)), .13, 1)
-    elseif hasWarning then
-      frame:SetBackdropBorderColor(.88, .48, .18, 1)
-    else
-      frame:SetBackdropBorderColor(.77, .57, .29, 1)
-    end
+  if hasWarning and self.db.flash then
+    paintOutline(frame.outline,{.9,.43+.24*math.abs(math.sin(self:Now()*5)),.13})
+  elseif hasWarning then
+    paintOutline(frame.outline,{.88,.48,.18})
+  else
+    paintOutline(frame.outline,{.77,.57,.29})
   end
   if self.inCombat then
     frame.footer:SetText("Combat: cached timers  •  Resync after combat")
@@ -521,5 +553,120 @@ function FG:UpdateUI()
     frame.footer:SetText("Amber: expiring soon  •  Red: missing")
   else
     frame.footer:SetText("Drag header to move  •  Drag corner to resize")
+  end
+end
+
+
+-- Class tiles extend the existing window without moving the three original tiles.
+-- Layout is changed only outside combat; countdowns use cached plain values.
+local baseLayout=FG.ApplyLayout
+function FG:ApplyLayout()
+  baseLayout(self)
+  if self.window and not self.inCombat then
+    self.classLayoutSignature=nil
+    self:LayoutClassRows()
+  end
+end
+
+local function newClassTile(fg)
+  local row=CreateFrame("Button",nil,fg.window)
+  row:SetFrameLevel(fg.window:GetFrameLevel()+3)
+  local bg=row:CreateTexture(nil,"BACKGROUND")
+  bg:SetAllPoints(row)
+  bg:SetColorTexture(.035,.045,.060,.96)
+  row.outline=makeOutline(row,1.5)
+  row.icon=row:CreateTexture(nil,"ARTWORK")
+  row.icon:SetSize(42,42)
+  row.icon:SetPoint("LEFT",4,0)
+  -- Same icon-and-timer treatment as the original compact tiles.
+  -- Full buff names are available in the hover tooltip.
+  row.time=fg.Font(row,15,fg.colors.green,"","RIGHT")
+  row.time:SetPoint("LEFT",row,"LEFT",50,0)
+  row.time:SetPoint("RIGHT",row,"RIGHT",-6,0)
+  row.time:SetHeight(22)
+  row:RegisterForClicks("LeftButtonUp","RightButtonUp","MiddleButtonUp")
+  row:RegisterForDrag("LeftButton")
+  row:SetScript("OnClick",function(_,mouse)
+    if fg.inCombat then return end
+    if mouse=="RightButton" then fg:CycleMode()
+    elseif mouse=="MiddleButton" then fg:ToggleSettings()
+    elseif fg.db.mode~="full" then fg:SetMode("full") end
+  end)
+  row:SetScript("OnDragStart",function() if not fg.inCombat and not fg.db.locked then fg.window:StartMoving() end end)
+  row:SetScript("OnDragStop",function() if not fg.inCombat then fg.window:StopMovingOrSizing(); fg:SavePosition() end end)
+  row:SetScript("OnEnter",function(b)
+    if fg.inCombat or not GameTooltip then return end
+    local a=fg.classState[b.buffKey] or {}
+    GameTooltip:SetOwner(b,"ANCHOR_TOP")
+    GameTooltip:SetText(a.name or b.buffKey,1,.8,.43)
+    GameTooltip:AddLine(fg:ClassStatus(b.buffKey).." / "..fg:FormatTime(fg:Remain(a)),.87,.87,.83,true)
+    GameTooltip:Show()
+  end)
+  row:SetScript("OnLeave",function() if not fg.inCombat and GameTooltip then GameTooltip:Hide() end end)
+  return row
+end
+
+function FG:LayoutClassRows()
+  if self.inCombat or not self.classDB then return end
+  local list=self:ClassVisible()
+  local mode=self.db.mode
+  local keys={mode}
+  for _,d in ipairs(list) do keys[#keys+1]=d.key end
+  local signature=table.concat(keys,"|")
+  if signature==self.classLayoutSignature then return end
+  self.classLayoutSignature=signature
+  local width=mode=="full" and 414 or mode=="compact" and 402 or 174
+  local base=mode=="full" and 390 or 60
+  -- All class timer tiles match the dimensions of a core compact tile.
+  -- Center each incomplete row without stretching; wrap after three tiles.
+  local columns=3
+  local gap=mode=="icons" and 5 or 4
+  local tileWidth=mode=="icons" and 51 or 128
+  local tileHeight=mode=="icons" and 51 or 50
+  local top=mode=="full" and 365 or 60
+  for i,d in ipairs(list) do
+    local row=self.classRows[i]
+    if not row then row=newClassTile(self); self.classRows[i]=row end
+    row.buffKey=d.key
+    row:ClearAllPoints()
+    local line=math.floor((i-1)/columns)
+    local count=math.min(columns,#list-line*columns)
+    local lineWidth=count*tileWidth+(count-1)*gap
+    local startX=math.floor((width-lineWidth)/2)
+    row:SetPoint("TOPLEFT",self.window,"TOPLEFT",startX+((i-1)%columns)*(tileWidth+gap),
+      -top-line*(tileHeight+gap))
+    row:SetSize(tileWidth,tileHeight)
+    local iconSize=mode=="icons" and 45 or 42
+    row.icon:SetSize(iconSize,iconSize)
+    row.icon:ClearAllPoints()
+    row.icon:SetPoint("LEFT",row,"LEFT",mode=="icons" and 4 or 4,0)
+    row.time:SetShown(mode~="icons")
+    row:Show()
+  end
+  for i=#list+1,#self.classRows do self.classRows[i]:Hide(); self.classRows[i].buffKey=false end
+  local lines=math.ceil(#list/columns)
+  local bottom=mode=="full" and 30 or 8
+  local height=lines>0 and (top+lines*tileHeight+(lines-1)*gap+bottom) or base
+  self.window:SetSize(width,height)
+end
+
+local baseUpdate=FG.UpdateUI
+function FG:UpdateUI()
+  baseUpdate(self)
+  if not self.window or not self.classDB then return end
+  if not self.inCombat then self:LayoutClassRows() end
+  for _,row in ipairs(self.classRows) do
+    if type(row.buffKey)=="string" then
+      local a=self.classState[row.buffKey] or {}
+      local status=self:ClassStatus(row.buffKey)
+      local tint=status=="active" and self.colors.green or status=="warning" and self.colors.amber or status=="missing" and self.colors.red or self.colors.muted
+      local label=(status=="active" or status=="warning") and self:FormatTime(self:Remain(a)) or status=="missing" and "NONE" or status=="unknown" and "?" or status:upper()
+      row.time:SetText(label)
+      row.time:SetTextColor(tint[1],tint[2],tint[3],1)
+      row.icon:SetTexture(a.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+      local flash=self.db.flash and (status=="warning" or status=="missing")
+      row.icon:SetAlpha(flash and (.65+.35*math.abs(math.sin(self:Now()*5))) or 1)
+      paintOutline(row.outline,tint)
+    end
   end
 end

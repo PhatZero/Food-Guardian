@@ -1,3 +1,65 @@
+## 1.1b9 — Icon-and-timer class buffs
+
+- Remove inline class buff names from compact and expanded class tiles; retain full names in hover tooltips.
+- Match the core compact tiles with identical dimensions, larger icons, centered countdowns and consistent missing indicators.
+- Preserve centered rows, icon-only mode, complete borders and cached combat timers.
+- Update regression tests for matching tile geometry and tooltip-only names.
+
+## 1.1b8 — Complete compact core borders
+
+- Apply the same explicit four-sided borders used by class buffs to food, sleeping bag and campfire tiles in compact and icon modes.
+- Use a single explicit outer border in every mode, even when class tracking is disabled, retaining warning colors and flashing.
+- Preserve the approved centered class buff layout and full view.
+- Extend regression coverage for all core border edges.
+
+## 1.1b7 — Class tile border and text rendering fix
+
+- Draw explicit four-sided class tile and tracker borders with dedicated textures instead of relying on resized backdrops.
+- Fit buff names to their available width, wrapping longer names when necessary.
+- Reserve bottom padding and keep centered 128px tiles and right-aligned countdowns.
+- Add border, text-fitting and geometry regression tests.
+
+## 1.1b6 — Reference-matched centered class tiles
+
+- Match optional tile width to the original 128px core tiles.
+- Center one or two buffs underneath the main row; wrap after three.
+- Restore bottom-right timers and smaller icons as shown in the approved reference.
+- Preserve combat behavior and add exact geometry checks for two centered tiles.
+
+## 1.1b5 — Visible compact layout redesign
+
+- Match class tile height and icon scale to the core compact buff tiles.
+- Align both rows to the same outer edges and four-pixel gutters.
+- Place larger timers directly under buff names rather than at the far edge of a wide tile.
+- Show the running version in Settings and debug output for installation verification.
+- Extend geometry regression checks in all modes.
+
+## 1.1b4 — Two-column class buff layout
+
+- Keep the three main buffs on their original row; optional named buffs use two equal-width tiles per row.
+- Center a single remaining half-width tile; preserve square three-column icon mode.
+- Keep consistent spacing and separate name/timer lines; update layout regression tests.
+
+## 1.1b3 — Uniform class buff layout
+
+- Use three consistently sized class buff tiles per row, matching compact and icon widths.
+- Center incomplete rows without stretching; wrap further selections automatically.
+- Constrain title and timer text to separate lines; preserve the original tracker dimensions when disabled.
+- Add layout regression coverage for zero through eight buffs in all three modes.
+
+## 1.1b2 — Combat visibility fix
+
+- Migrate inherited hide-in-combat settings once to visible cached timers, preserving later explicit choices.
+- Clarify the combat toggle and add visibility diagnostics.
+- Add regression coverage for legacy saved settings and visible class rows in combat.
+
+## 1.1b1 — Class buff QA preview
+
+- Optional per-character class, external and custom helpful aura tracking.
+- Group alternative buffs, track temporary weapon enhancements per hand, and configure missing/expiration warnings.
+- Extend all three display modes with cached combat timers.
+- Add class buff mock coverage; live Forever QA pending.
+
 # Food Guardian 1.0.3: Combat-Safe Countdown (QA)
 
 - Keep the tracker visible during combat using cached buff expiration times.

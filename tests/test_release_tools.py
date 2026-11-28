@@ -3,9 +3,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import build
+import version as release_version
 
 
 class ManifestTests(unittest.TestCase):
@@ -52,6 +54,24 @@ class ManifestTests(unittest.TestCase):
             with zipfile.ZipFile(result) as archive:
                 self.assertIn("FoodGuardian/FoodGuardian.toc", archive.namelist())
                 self.assertIn("FoodGuardian/Core.lua", archive.namelist())
+
+
+class BetaVersionTests(unittest.TestCase):
+    def select(self, tags, at_head=()):
+        with patch.dict("os.environ", {"GITHUB_REF": "refs/heads/main"}), \
+             patch.object(release_version, "current_version", return_value="1.1b9"), \
+             patch.object(release_version, "git", side_effect=[tags, at_head]):
+            return release_version.select()
+
+    def test_qa_beta_number_is_preserved(self):
+        self.assertEqual(self.select([]), "1.1b9")
+        self.assertEqual(self.select(["forever-1.1b2"]), "1.1b9")
+
+    def test_existing_beta_advances(self):
+        self.assertEqual(self.select(["forever-1.1b9"]), "1.1b10")
+
+    def test_retry_at_head_reuses_version(self):
+        self.assertEqual(self.select(["forever-1.1b9"], ["forever-1.1b9"]), "1.1b9")
 
 
 if __name__ == "__main__":

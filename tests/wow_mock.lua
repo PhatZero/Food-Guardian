@@ -10,6 +10,13 @@ function methods:CreateTexture() return setmetatable({},mockMT) end
 function methods:CreateFontString() return setmetatable({},mockMT) end
 function methods:SetText(v) self.__text=v end
 function methods:GetText() return self.__text end
+function methods:SetFont(face,size,flags) self.fontSize=size end
+function methods:GetStringWidth()
+  local label=rawget(self,"__text")
+  assert(type(label)=="string","font measurement requires a string")
+  return #label*(rawget(self,"fontSize") or 10)*.61
+end
+function methods:SetWordWrap(wrap) self.wrap=wrap end
 function methods:GetFrameLevel() return 1 end
 function methods:GetCenter() return 400,400 end
 function methods:GetParent() return self.parent end
@@ -73,14 +80,21 @@ C_Container={GetContainerNumSlots=function(bag) return bag==0 and 1 or 0 end,
  GetContainerItemID=function() return 211527 end,
  GetContainerItemCooldown=function() return 800,1200,1 end}
 
+UnitClass=function() return "Mage","MAGE" end
+-- Simulate a saved preference from the pre-cached-timer releases.
+FoodGuardianDB={hideInCombat=true}
 local fg={}
-for _, path in ipairs({"Core.lua","Auras.lua","Inventory.lua","UI.lua","Settings.lua","Minimap.lua"}) do
+for _, path in ipairs({"Core.lua","ClassBuffs.lua","Auras.lua","Inventory.lua","UI.lua","Settings.lua","Minimap.lua"}) do
   local f,err=loadfile(root.."/"..path);assert(f,err);f("FoodGuardian",fg)
 end
 local bootstrap=created[1]
 bootstrap.scripts.OnEvent(bootstrap,"ADDON_LOADED","FoodGuardian")
 assert(fg.ready,"addon did not initialize")
-assert(fg.version=="1.0.3","incorrect version")
+assert(fg.db.hideInCombat==false and fg.db.combatVisibilityVersion==1,"legacy hide flag not migrated")
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
+assert(fg.window:IsShown(),"migrated tracker still hides in combat")
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
+assert(fg.version=="1.1b9","incorrect version")
 assert(fg.window and fg.settings and fg.minimap,"UI components not initialized")
 assert(fg.state.food.active and fg.state.bag.active and fg.state.camp.active and fg.state.tent.active,"auras not found")
 assert(fg.state.bag.stacks==3,"sleeping bag stacks not read")
@@ -298,7 +312,7 @@ fg:Slash("demo warning")
 assert(fg:Status("food")=="warning" and fg:Status("camp")=="warning","warning demo statuses wrong")
 assert(fg.window.rows.food.time.__text=="01:28","warning countdown wrong")
 assert(fg.window.compactTiles.food.time.__text=="01:28","compact warning mismatch")
-assert(fg.window.iconTiles.food.colors,"icon border was not tinted")
+assert(fg.window.iconTiles.food.outline.edges.BOTTOM.colors,"icon border was not tinted")
 fg:Slash("demo off");assert(not fg.demo,"failed to resume live tracking")
 
 -- Live update and missing/unknown cases propagate to all three views.
@@ -321,3 +335,119 @@ assert(fg:Status("camp")=="unknown" and fg.window.rows.camp.time.__text=="UNKNOW
  "unreadable aura must not become missing")
 assert(fg.window.compactTiles.food.time.__text=="?","unknown compact status wrong")
 print("Food Guardian mock runtime: PASS (three modes, buffs, combat concealment, minimap rim, settings)")
+
+
+-- Optional class tracking stays off by default and preserves existing dimensions.
+assert(not fg.classDB.enabled,"class buffs must default off")
+C_UnitAuras.GetAuraDataByIndex=function(unit,i,filter) assert(not fg.inCombat); return aura[filter][i] end
+now=2000
+aura.HELPFUL={{name="Arcane Brilliance",spellId=23028,icon=2,duration=3600,expirationTime=2300},
+  {name="Ice Armor",spellId=7302,icon=3,duration=1800,expirationTime=0},
+  {name="Custom Test",spellId=90001,icon=4,duration=120,expirationTime=2120}}
+fg.classDB.enabled=true
+fg.classDB.selected.class_intellect=true
+fg.classDB.selected.class_armor=true
+fg:Refresh(true)
+assert(fg:ClassStatus("class_intellect")=="active","intellect alias not recognized")
+assert(fg:ClassStatus("class_armor")=="active","permanent armor not recognized")
+assert(#fg:ClassVisible()==2,"class selections not respected")
+fg:SetMode("full")
+assert(fg.window.height>390 and fg.classRows[1].time.__text=="05:00","class full rows absent")
+fg:SetMode("compact")
+assert(fg.window.height>60,"class compact rows absent")
+assert(fg.classRows[1].width==128 and fg.classRows[2].width==128,"class tiles must match core compact tile width")
+assert(fg.classRows[1].__point[4]==71 and fg.classRows[2].__point[4]==203,"two compact tiles must be centered, not stretched")
+assert(fg.classRows[1].height==50 and fg.classRows[1].icon.width==42,"class tiles must match core timer tiles")
+assert(fg.classRows[1].__point[5]==-60 and fg.window.height==118,"compact row gaps or window height wrong")
+for _,side in ipairs({"TOP","BOTTOM","LEFT","RIGHT"}) do
+  assert(fg.classRows[1].outline.edges[side] and fg.classOuterOutline.edges[side],"missing explicit border: "..side)
+  assert(fg.classRows[1].outline.edges[side].colors,"untinted class border")
+  for _,key in ipairs({"food","bag","camp"}) do
+    assert(type(fg.window.compactTiles[key].outline.edges[side].colors)=="table","untinted core compact border: "..key.."/"..side)
+    assert(type(fg.window.iconTiles[key].outline.edges[side].colors)=="table","untinted core icon border: "..key.."/"..side)
+  end
+end
+assert(rawget(fg.classRows[1],"title")==nil,"class name should not occupy tile space")
+assert(rawget(fg.classRows[1],"measure")==nil,"unused name measurement should not be created")
+local hoveredName
+local originalTooltipSetText=GameTooltip.SetText
+GameTooltip.SetText=function(_,label) hoveredName=label end
+fg.classRows[1].scripts.OnEnter(fg.classRows[1])
+assert(hoveredName=="Arcane Brilliance","hover should display the full buff name")
+GameTooltip.SetText=originalTooltipSetText
+assert(fg.classRows[1].__point[5]==fg.classRows[2].__point[5],"two tiles should share a row")
+fg:SetMode("icons")
+assert(fg.classRows[1].icon and not fg.classRows[1].time.shown,"class icon row incorrect")
+assert(fg:AddClassBuff("90001"),"custom ID not accepted")
+assert(fg:ClassStatus("class_custom_90001")=="active","custom ID not matched")
+assert(not fg:AddClassBuff("90001"),"duplicate custom allowed")
+assert(fg:RemoveClassBuff("90001"),"custom removal failed")
+fg.db.hideInCombat=false
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
+now=2250
+fg:Refresh(true)
+assert(fg:ClassStatus("class_intellect")=="warning","cached class countdown failed")
+assert(fg.window:IsShown() and fg.classRows[1]:IsShown(),"class tracker hidden in cached combat mode")
+aura.HELPFUL[1].expirationTime=5000
+now=2301
+fg:Refresh(true)
+assert(fg:ClassStatus("class_intellect")=="missing","cached expiration failed")
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
+assert(fg:ClassStatus("class_intellect")=="active","post-combat class resync failed")
+fg.classDB.selected.class_weapon_main=true
+GetWeaponEnchantInfo=function() return true,90000,0,123,false,0,0,nil end
+fg:Refresh(true)
+assert(fg:ClassStatus("class_weapon_main")=="active","weapon timer missing")
+assert(fg:Remain(fg.classState.class_weapon_main)==90,"weapon milliseconds conversion failed")
+fg.classDB.enabled=false
+fg:Refresh(true)
+assert(fg.window.height==60,"disabled class buffs changed original layout")
+assert(fg.window.outline:IsShown(),"outer outline disappeared when class tracking disabled")
+for _,key in ipairs({"food","bag","camp"}) do
+  assert(type(fg.window.compactTiles[key].outline.edges.BOTTOM.colors)=="table","core bottom outline lost when class tracking disabled")
+end
+print("Food Guardian class buff mock: PASS")
+
+-- A later deliberate hide preference is retained rather than reset on every login.
+fg.db.hideInCombat=true
+fg:Init()
+assert(fg.db.hideInCombat==true,"explicit combat preference lost on reload")
+print("Food Guardian combat preference migration: PASS")
+
+
+-- Test centered wrapping independently of class-specific availability.
+fg.db.hideInCombat=false
+fg.inCombat=false
+local originalVisible=fg.ClassVisible
+for _,mode in ipairs({"full","compact","icons"}) do
+  fg.db.mode=mode
+  local width=mode=="full" and 414 or mode=="compact" and 402 or 174
+  local columns=3
+  local gap=mode=="icons" and 5 or 4
+  local tile=mode=="icons" and 51 or 128
+  for n=0,8 do
+    fg.ClassVisible=function()
+      local d={}
+      for i=1,n do d[i]={key="layout_test_"..i} end
+      return d
+    end
+    fg:ApplyLayout()
+    for i=1,n do
+      local row=fg.classRows[i]
+      local line=math.floor((i-1)/columns)
+      local count=math.min(columns,n-line*columns)
+      local x=math.floor((width-count*tile-(count-1)*gap)/2)+((i-1)%columns)*(tile+gap)
+      assert(row.width==tile and row.__point[4]==x,"inconsistent class tile spacing")
+      assert(row.height==(mode=="icons" and 51 or 50),"inconsistent tile height")
+      assert(row.icon.width==(mode=="icons" and 45 or 42),"inconsistent icon size")
+      assert(rawget(row,"title")==nil,"class names should only appear in tooltips")
+      assert(row.__point[4]>=0 and row.__point[4]+row.width<=width,"class tile outside frame")
+      assert(-row.__point[5]+row.height<=fg.window.height,"class tile below frame")
+      if i>columns then assert(row.__point[5]<fg.classRows[i-columns].__point[5],"class tile did not wrap") end
+    end
+    if n==0 then assert(fg.window.height==(mode=="full" and 390 or 60),"original layout height changed") end
+  end
+end
+fg.ClassVisible=originalVisible
+fg:ApplyLayout()
+print("Food Guardian uniform class tile layout: PASS")

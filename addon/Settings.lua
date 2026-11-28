@@ -48,7 +48,7 @@ function FG:CreateSettings()
   end)
   local title = self.Font(header, 17, self.colors.bright, "FOOD GUARDIAN  ·  SETTINGS")
   title:SetPoint("TOPLEFT", 17, -11)
-  local caption = self.Font(header, 10, self.colors.cyan, "FOREVER  /  PLAYER PREFERENCES")
+  local caption = self.Font(header, 10, self.colors.cyan, "FOREVER  /  V"..self.version.."  /  PLAYER PREFERENCES")
   caption:SetPoint("TOPLEFT", 17, -33)
   local close = button(header, "X", 28, 26, function() frame:Hide() end)
   close:SetPoint("TOPRIGHT", -10, -10)
@@ -127,7 +127,7 @@ function FG:CreateSettings()
     { "showTent", "Show Camp Tent / Boosted Rest strip" },
     { "minimap", "Show minimap shield launcher" },
     { "locked", "Lock tracker position and scale" },
-    { "hideInCombat", "Hide Food Guardian during combat" },
+    { "hideInCombat", "Hide tracker in combat (OFF = cached timers)" },
   }
   for i, option in ipairs(opts) do
     local key = option[1]
@@ -173,8 +173,10 @@ function FG:CreateSettings()
     FG:ResetPosition()
   end)
   reset:SetPoint("BOTTOMRIGHT", -16, 12)
-  local footer = self.Font(frame, 10, self.colors.muted, "VERSION 1.0.3  ·  FOOD GUARDIAN")
-  footer:SetPoint("BOTTOMLEFT", 19, 17)
+  local classButton = button(frame, "CLASS BUFFS", 142, 25, function() FG:OpenClassSettings() end)
+  classButton:SetPoint("BOTTOMLEFT", 16, 12)
+  frame.classButton=classButton
+  self:CreateClassSettings()
 
   if type(UISpecialFrames) == "table" then
     table.insert(UISpecialFrames, "FoodGuardianSettingsFrame")
@@ -225,4 +227,121 @@ function FG:ToggleSettings()
   end
   if self.settings:IsShown() then self.settings:Hide()
   else self.settings:Show() end
+end
+
+
+function FG:CreateClassSettings()
+  local parent=self.settings
+  local p=CreateFrame("Frame",nil,parent,"BackdropTemplate")
+  p:SetAllPoints(parent)
+  p:SetFrameLevel(parent:GetFrameLevel()+10)
+  p:EnableMouse(true)
+  self:SkinPanel(p,true)
+  p:Hide()
+  parent.classPage=p
+  p.heading=self.Font(p,17,self.colors.bright,"CLASS BUFFS")
+  p.heading:SetPoint("TOPLEFT",17,-15)
+  p.caption=self.Font(p,10,self.colors.cyan,"")
+  p.caption:SetPoint("TOPLEFT",17,-40)
+  local back=button(p,"BACK",70,26,function() p:Hide() end)
+  back:SetPoint("TOPRIGHT",-12,-12)
+  local function toggle(label,key,y)
+    local f=self.Font(p,12,self.colors.ivory,label); f:SetPoint("TOPLEFT",19,y-5)
+    local b=button(p,"OFF",60,25,function()
+      FG.classDB[key]=not FG.classDB[key]; FG:ClassChanged()
+    end)
+    b:SetPoint("TOPRIGHT",-19,y)
+    return b
+  end
+  p.enabled=toggle("Enable optional buff tracking","enabled",-65)
+  p.missing=toggle("Show missing buffs","missing",-97)
+  local warning=self.Font(p,12,self.colors.ivory,"Expiration warning")
+  warning:SetPoint("TOPLEFT",19,-135)
+  p.warning=self.Font(p,12,self.colors.gold,"","CENTER")
+  p.warning:SetPoint("TOPRIGHT",-55,-135)
+  p.warning:SetSize(70,22)
+  local less=button(p,"-",25,23,function() FG.classDB.warning=math.max(15,FG.classDB.warning-15); FG:ClassChanged() end)
+  less:SetPoint("TOPRIGHT",-130,-130)
+  local more=button(p,"+",25,23,function() FG.classDB.warning=math.min(1800,FG.classDB.warning+15); FG:ClassChanged() end)
+  more:SetPoint("TOPRIGHT",-19,-130)
+  p.entries={}
+  p.pageIndex=1
+  for i=1,10 do
+    local y=-176-(i-1)*34
+    local label=self.Font(p,11,self.colors.ivory,"")
+    label:SetPoint("TOPLEFT",19,y-5)
+    label:SetWidth(290)
+    local b=button(p,"OFF",52,25,function()
+      local d=p.entries[i].definition
+      if d then FG.classDB.selected[d.key]=not FG.classDB.selected[d.key]; FG:ClassChanged() end
+    end)
+    b:SetPoint("TOPRIGHT",-50,y)
+    local remove=button(p,"X",25,25,function()
+      local d=p.entries[i].definition
+      if d and d.category=="custom" then FG:RemoveClassBuff(d.label) end
+    end)
+    remove:SetPoint("TOPRIGHT",-19,y)
+    p.entries[i]={label=label,toggle=b,remove=remove}
+  end
+  local prev=button(p,"PREV",70,24,function() p.pageIndex=math.max(1,p.pageIndex-1); FG:UpdateClassSettings() end)
+  prev:SetPoint("TOPLEFT",19,-524)
+  local nextButton=button(p,"NEXT",70,24,function() p.pageIndex=p.pageIndex+1; FG:UpdateClassSettings() end)
+  nextButton:SetPoint("TOPRIGHT",-19,-524)
+  p.pageLabel=self.Font(p,11,self.colors.gold,"","CENTER")
+  p.pageLabel:SetPoint("TOP",0,-529)
+  local hint=self.Font(p,10,self.colors.muted,"Add any helpful aura by exact name or spell ID (up to 8).")
+  hint:SetPoint("TOPLEFT",19,-560)
+  local edit=CreateFrame("EditBox",nil,p,"InputBoxTemplate")
+  edit:SetSize(280,26)
+  edit:SetPoint("TOPLEFT",24,-578)
+  edit:SetAutoFocus(false)
+  p.input=edit
+  local function add()
+    if FG.inCombat then return end
+    if FG:AddClassBuff(edit:GetText()) then
+      edit:SetText(""); edit:ClearFocus()
+      p.pageIndex=math.ceil(#FG:ClassDefinitions()/10)
+      FG:UpdateClassSettings()
+    else FG:Print("Invalid or duplicate buff, or custom buff limit reached.") end
+  end
+  edit:SetScript("OnEnterPressed",add)
+  local addButton=button(p,"ADD",82,26,add)
+  addButton:SetPoint("TOPRIGHT",-19,-578)
+  local note=self.Font(p,10,self.colors.muted,"Weapon options track temporary enhancements by hand, not poison type.")
+  note:SetPoint("BOTTOMLEFT",19,17)
+end
+
+function FG:OpenClassSettings()
+  if self.inCombat then return end
+  self.settings.classPage:Show()
+  self:UpdateClassSettings()
+end
+
+function FG:UpdateClassSettings()
+  local p=self.settings and self.settings.classPage
+  if not p or self.inCombat then return end
+  local db=self.classDB
+  p.caption:SetText((self.classToken~="" and self.classToken or "CLASS UNKNOWN").."  /  CHARACTER PREFERENCES")
+  local function paint(b,on)
+    b.text:SetText(on and "ON" or "OFF")
+    setTextColor(b.text,on and self.colors.green or self.colors.muted)
+  end
+  paint(p.enabled,db.enabled); paint(p.missing,db.missing)
+  p.warning:SetText(db.warning.."s")
+  local definitions=self:ClassDefinitions()
+  local pages=math.max(1,math.ceil(#definitions/10))
+  p.pageIndex=math.min(pages,math.max(1,p.pageIndex))
+  p.pageLabel:SetText(p.pageIndex.." / "..pages)
+  for i,row in ipairs(p.entries) do
+    local d=definitions[(p.pageIndex-1)*10+i]
+    row.definition=d
+    row.label:SetShown(d~=nil)
+    row.toggle:SetShown(d~=nil)
+    row.remove:SetShown(d~=nil and d.category=="custom")
+    if d then
+      local prefix=d.category=="external" and "External: " or d.category=="custom" and "Custom: " or ""
+      row.label:SetText(prefix..d.label)
+      paint(row.toggle,db.selected[d.key])
+    end
+  end
 end
