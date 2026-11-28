@@ -220,6 +220,8 @@ function FG:CreateUI()
   self:SkinPanel(frame, true)
   if frame.SetBackdropBorderColor then frame:SetBackdropBorderColor(0.75, 0.55, 0.26, 1) end
   self.window = frame
+  self.classOuterOutline = nil
+  self.classLayoutSignature = nil
 
   frame.topRule = solid(frame, 1, 2, self.colors.gold, .65)
   frame.topRule:SetPoint("TOPLEFT", 1, -49)
@@ -677,7 +679,7 @@ function FG:LayoutClassRows()
     row.time:SetShown(mode~="icons")
     row:Show()
   end
-  for i=#list+1,#self.classRows do self.classRows[i]:Hide(); self.classRows[i].buffKey=nil end
+  for i=#list+1,#self.classRows do self.classRows[i]:Hide(); self.classRows[i].buffKey=false end
   local lines=math.ceil(#list/columns)
   local bottom=mode=="full" and 30 or 8
   local height=lines>0 and (top+lines*tileHeight+(lines-1)*gap+bottom) or base
@@ -690,7 +692,7 @@ function FG:UpdateUI()
   if not self.window or not self.classDB then return end
   if not self.inCombat then self:LayoutClassRows() end
   for _,row in ipairs(self.classRows) do
-    if row.buffKey then
+    if type(row.buffKey)=="string" then
       local a=self.classState[row.buffKey] or {}
       local status=self:ClassStatus(row.buffKey)
       local tint=status=="active" and self.colors.green or status=="warning" and self.colors.amber or status=="missing" and self.colors.red or self.colors.muted

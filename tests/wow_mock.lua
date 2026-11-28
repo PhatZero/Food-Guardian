@@ -11,7 +11,11 @@ function methods:CreateFontString() return setmetatable({},mockMT) end
 function methods:SetText(v) self.__text=v end
 function methods:GetText() return self.__text end
 function methods:SetFont(face,size,flags) self.fontSize=size end
-function methods:GetStringWidth() return #(rawget(self,"__text") or "")*(rawget(self,"fontSize") or 10)*.61 end
+function methods:GetStringWidth()
+  local label=rawget(self,"__text")
+  assert(type(label)=="string","font measurement requires a string")
+  return #label*(rawget(self,"fontSize") or 10)*.61
+end
 function methods:SetWordWrap(wrap) self.wrap=wrap end
 function methods:GetFrameLevel() return 1 end
 function methods:GetCenter() return 400,400 end
