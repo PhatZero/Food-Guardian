@@ -10,7 +10,9 @@ local function button(parent, label, w, h, action)
   FG:SkinPanel(b, true)
   b.text = FG.Font(b, 12, FG.colors.gold, label, "CENTER")
   b.text:SetAllPoints()
-  b:SetScript("OnClick", action)
+  b:SetScript("OnClick", function(...)
+    if not FG.inCombat then action(...) end
+  end)
   b:SetScript("OnEnter", function(self)
     if self.SetBackdropBorderColor then self:SetBackdropBorderColor(.98, .78, .41, 1) end
   end)
@@ -171,7 +173,7 @@ function FG:CreateSettings()
     FG:ResetPosition()
   end)
   reset:SetPoint("BOTTOMRIGHT", -16, 12)
-  local footer = self.Font(frame, 10, self.colors.muted, "VERSION 1.0.2  ·  FOOD GUARDIAN")
+  local footer = self.Font(frame, 10, self.colors.muted, "VERSION 1.0.3  ·  FOOD GUARDIAN")
   footer:SetPoint("BOTTOMLEFT", 19, 17)
 
   if type(UISpecialFrames) == "table" then
@@ -217,7 +219,7 @@ end
 
 function FG:ToggleSettings()
   if not self.settings then return end
-  if self:ShouldHideInCombat() then
+  if self.inCombat then
     self:Print("Settings are hidden until combat ends.")
     return
   end

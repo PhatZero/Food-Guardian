@@ -1,3 +1,13 @@
+# Food Guardian 1.0.3: Combat-Safe Countdown (QA)
+
+- Keep the tracker visible during combat using cached buff expiration times.
+- Pause aura and inventory scans, minimap refreshes, and configuration changes until combat ends.
+- Continue countdowns, progress bars and warnings, then rescan on leaving combat.
+- Keep the existing Hide in combat setting; new installations default to visible timers. Existing users can select /fg combat off.
+- Cached buffs cannot reflect mid-combat refreshes or removals until resync. No native secret duration object integration is included in this build.
+
+---
+
 # Food Guardian 1.0.2: EllesmereUI Compatibility
 
 **World of Warcraft: Forever (1.60.1)**

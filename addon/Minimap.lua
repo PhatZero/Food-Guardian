@@ -45,7 +45,7 @@ end
 
 function FG:RepositionMinimap()
   local icon = self.minimap
-  if not icon or self:IsEllesmereMinimapActive() then return end
+  if self.inCombat or not icon or self:IsEllesmereMinimapActive() then return end
   -- A disabled external minimap may leave our button inside its flyout.
   -- Restore the native parent, art, and drag behavior if it is switched off.
   if self.nativeRestorePending or icon:GetParent() ~= Minimap then
@@ -109,6 +109,7 @@ function FG:CreateMinimap()
   dot:SetTexture("Interface\\Buttons\\WHITE8X8")
   icon.dot = dot
   icon:SetScript("OnClick", function(_, mouse)
+    if FG.inCombat then return end
     if mouse == "RightButton" then FG:ToggleSettings() else FG:ToggleWindow() end
   end)
   icon.nativeDragStart = function(self)
@@ -132,9 +133,9 @@ function FG:CreateMinimap()
   icon:SetScript("OnDragStop", icon.nativeDragStop)
   icon:SetScript("OnHide", function(self) self:SetScript("OnUpdate", nil) end)
   icon:SetScript("OnEnter", function(self)
-    if not GameTooltip then return end
+    if FG.inCombat or not GameTooltip then return end
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetText("Food Guardian |cffc2a46b[v1.0.2]|r", 1, .82, .46)
+    GameTooltip:SetText("Food Guardian |cffc2a46b[v1.0.3]|r", 1, .82, .46)
     GameTooltip:AddLine("Left-click: Toggle tracker", .85, .9, .82)
     GameTooltip:AddLine("Right-click: Settings", .85, .9, .82)
     if FG:IsEllesmereMinimapActive() then
@@ -145,7 +146,7 @@ function FG:CreateMinimap()
     GameTooltip:AddLine("/fg demo: Preview all states", .4, .85, .88)
     GameTooltip:Show()
   end)
-  icon:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+  icon:SetScript("OnLeave", function() if not FG.inCombat and GameTooltip then GameTooltip:Hide() end end)
   self.minimap = icon
   self.minimapManagedByEllesmere = self:IsEllesmereMinimapActive()
   self:RepositionMinimap()
@@ -153,7 +154,7 @@ function FG:CreateMinimap()
 end
 
 function FG:UpdateMinimap()
-  if not self.minimap then return end
+  if self.inCombat or not self.minimap then return end
   local managed = self:IsEllesmereMinimapActive()
   if managed ~= self.minimapManagedByEllesmere then
     self.minimapManagedByEllesmere = managed

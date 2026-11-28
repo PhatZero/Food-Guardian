@@ -1,6 +1,6 @@
 local addonName, FG = ...
 FG.name = addonName
-FG.version = "1.0.2"
+FG.version = "1.0.3"
 FG.targetInterface = 16001
 FG.items = { sleepingBag = 211527 }
 FG.spells = { sleepingBag = 429959, camp = 1229741, tent = 1229451 }
@@ -18,7 +18,7 @@ FG.colors = {
   red = { 1, 0.37, 0.34 }, cyan = { 0.30, 0.79, 0.85 },
 }
 local defaults = {
-  visible = true, mode = "full", locked = false, minimap = true, hideInCombat = true,
+  visible = true, mode = "full", locked = false, minimap = true, hideInCombat = false,
   flash = true, sound = false, showTent = true,
   foodWarning = 180, bagWarning = 600, campWarning = 600,
   scale = 1, x = 0, y = 85, minimapAngle = 220,
@@ -91,7 +91,7 @@ function FG:Status(key)
     aura = self:GetDisplayState()[key]
   else
     aura = self.state[key]
-    if self.auraReadFailed and not (aura and aura.active) then return "unknown" end
+    if (self.auraReadFailed or not self.scannedOnce) and not (aura and aura.active) then return "unknown" end
   end
   if not aura or not aura.active then return "missing" end
   local remaining = self:Remain(aura)
@@ -177,14 +177,21 @@ function FG:PrintProtectionInfo()
 end
 
 function FG:Refresh(rescan)
-  -- The combat-hidden UI is fully dormant. Scan again on leaving combat.
-  if self:ShouldHideInCombat() then return end
+  -- During combat, only render our own cached, ordinary Lua values.
+  -- Never query aura/inventory APIs or manipulate a minimap manager here.
+  if self.inCombat then
+    if not self:ShouldHideInCombat() then
+      self:NotifyTransitions()
+      if self.UpdateUI then self:UpdateUI() end
+    end
+    return
+  end
   if rescan then
     if self.ScanAuras then self:ScanAuras() end
     if self.ScanInventory then self:ScanInventory() end
-    self:NotifyTransitions()
     self.scannedOnce = true
   end
+  self:NotifyTransitions()
   if self.UpdateUI then self:UpdateUI() end
   if self.UpdateMinimap then self:UpdateMinimap() end
 end
@@ -198,6 +205,7 @@ function FG:SavePosition()
 end
 
 function FG:ResetPosition()
+  if self.inCombat then return end
   self.db.x, self.db.y = 0, 85
   if self.window then
     self.window:ClearAllPoints()
@@ -207,6 +215,7 @@ function FG:ResetPosition()
 end
 
 function FG:SetScale(value)
+  if self.inCombat then return end
   value = self:SafeNumber(value) or 1
   value = math.floor(math.max(0.70, math.min(1.45, value)) * 20 + 0.5) / 20
   self.db.scale = value
@@ -215,6 +224,7 @@ function FG:SetScale(value)
 end
 
 function FG:ToggleDemo(variant)
+  if self.inCombat then return end
   if variant == "off" then
     self.demo = false
   elseif variant == "healthy" or variant == "warning" then
@@ -238,13 +248,15 @@ end
 function FG:ApplyCombatVisibility()
   if not self.db then return end
   local hidden = self:ShouldHideInCombat()
-  if self.settings and hidden and self.settings:IsShown() then
+  if self.settings and self.inCombat and self.settings:IsShown() then
     self.restoreSettingsAfterCombat = true
   end
-  if self.window then self.window:SetShown(self.db.visible and not hidden) end
-  if self.minimap then self:ApplyMinimapVisibility() end
+  local wanted = self.db.visible and not hidden
+  if self.window and self.window:IsShown() ~= wanted then self.window:SetShown(wanted) end
+  -- Visible combat mode leaves externally managed minimap buttons alone.
+  if self.minimap and (not self.inCombat or hidden) then self:ApplyMinimapVisibility() end
   if self.settings then
-    if hidden then
+    if self.inCombat then
       self.settings:Hide()
     elseif self.restoreSettingsAfterCombat then
       self.restoreSettingsAfterCombat = nil
@@ -254,11 +266,13 @@ function FG:ApplyCombatVisibility()
 end
 
 function FG:ToggleWindow()
+  if self.inCombat then return end
   self.db.visible = not self.db.visible
   self:ApplyCombatVisibility()
 end
 
 function FG:SetMode(mode)
+  if self.inCombat then return false end
   if mode == "compact" or mode == "bar" then mode = "compact" end
   if mode == "icon" then mode = "icons" end
   if mode ~= "full" and mode ~= "compact" and mode ~= "icons" then return false end
@@ -292,6 +306,10 @@ end
 
 function FG:Slash(message)
   local cmd, value = string.match(string.lower(message or ""), "^%s*(%S*)%s*(.-)%s*$")
+  if self.inCombat and cmd ~= "debug" and cmd ~= "protected" and cmd ~= "taint" then
+    self:Print("Tracker controls are locked until combat ends.")
+    return
+  end
   if cmd == "" or cmd == "toggle" then
     self:ToggleWindow()
   elseif cmd == "settings" or cmd == "options" then
@@ -359,7 +377,7 @@ function FG:Init()
   self.db.scale = math.max(0.70, math.min(1.45, self:SafeNumber(self.db.scale) or 1))
   self:CreateUI()
   self:CreateSettings()
-  self:CreateMinimap()
+  if not self.inCombat then self:CreateMinimap() end
   self:Refresh(true)
   self.ready = true
   -- Blizzard owns SlashCmdList. Do not ever replace its global registry.
@@ -368,7 +386,7 @@ function FG:Init()
   if type(SlashCmdList) == "table" then
     SlashCmdList.FOODGUARDIAN = function(text) FG:Slash(text) end
   end
-  self:Print("v1.0.2 ready. /fg mode full|compact|icons; /fg settings for options.")
+  self:Print("v1.0.3 ready. /fg mode full|compact|icons; /fg settings for options.")
   self:ApplyCombatVisibility()
 end
 
@@ -391,13 +409,21 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2)
     if arg1 == addonName then FG:Init() end
   elseif event == "PLAYER_REGEN_DISABLED" then
     FG.inCombat = true
-    if FG.ready then FG:ApplyCombatVisibility() end
+    if FG.ready then
+      FG:ApplyCombatVisibility()
+      FG:Refresh(false)
+    end
   elseif event == "PLAYER_REGEN_ENABLED" then
     FG.inCombat = false
     if FG.ready then
+      if not FG.minimap then FG:CreateMinimap() end
       FG:ApplyCombatVisibility()
+      FG.scanElapsed = 0
       FG:Refresh(true)
     end
+  elseif FG.ready and FG.inCombat then
+    -- Aura/inventory events can contain restricted values; wait for regen.
+    return
   elseif FG.ready and event == "UNIT_AURA" then
     if arg1 == "player" then FG:Refresh(true) end
   elseif FG.ready then
@@ -415,7 +441,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
     end
   end
   FG.elapsed = FG.elapsed + elapsed
-  FG.scanElapsed = FG.scanElapsed + elapsed
+  if not FG.inCombat then FG.scanElapsed = FG.scanElapsed + elapsed end
   if FG.elapsed >= 0.15 then
     FG.elapsed = 0
     FG:Refresh(FG.scanElapsed >= 2)
