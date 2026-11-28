@@ -35,3 +35,6 @@ New installations keep the tracker visible in combat. Existing users can run `/f
 
 ## Optional class buffs (1.1 beta)
 Open `/fg settings` → **Class Buffs**. Enable tracking and select individual presets or grouped alternatives for your character; external buffs and temporary weapon enhancements are also optional. Custom helpful auras can be entered by exact name or ID (up to eight), or via `/fg buffadd` and `/fg buffremove`. Preferences are per character. Class timers use the existing out-of-combat snapshot and refresh when combat ends. Weapon enhancements are per hand, not specific poison types. Preset aura names and legacy spellbook support require live Forever QA.
+
+### Combat visibility upgrade
+The 1.1b2 build resets the old hide-in-combat preference once so cached timers remain visible by default. If you explicitly prefer hiding afterward, use Settings or `/fg combat on`; `/fg combat off` keeps the tracker visible. `/fg debug` reports the saved combat setting and window state.

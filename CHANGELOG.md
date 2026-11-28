@@ -1,3 +1,9 @@
+## 1.1b2 — Combat visibility fix
+
+- Migrate inherited hide-in-combat settings once to visible cached timers, preserving later explicit choices.
+- Clarify the combat toggle and add visibility diagnostics.
+- Add regression coverage for legacy saved settings and visible class rows in combat.
+
 ## 1.1b1 — Class buff QA preview
 
 - Optional per-character class, external and custom helpful aura tracking.

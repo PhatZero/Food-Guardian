@@ -127,7 +127,7 @@ function FG:CreateSettings()
     { "showTent", "Show Camp Tent / Boosted Rest strip" },
     { "minimap", "Show minimap shield launcher" },
     { "locked", "Lock tracker position and scale" },
-    { "hideInCombat", "Hide Food Guardian during combat" },
+    { "hideInCombat", "Hide tracker in combat (OFF = cached timers)" },
   }
   for i, option in ipairs(opts) do
     local key = option[1]

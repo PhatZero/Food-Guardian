@@ -1,6 +1,6 @@
 local addonName, FG = ...
 FG.name = addonName
-FG.version = "1.1b1"
+FG.version = "1.1b2"
 FG.targetInterface = 16001
 FG.items = { sleepingBag = 211527 }
 FG.spells = { sleepingBag = 429959, camp = 1229741, tent = 1229451 }
@@ -300,6 +300,9 @@ end
 
 function FG:Debug()
   self:Refresh(true)
+  self:Print("Combat visibility: " .. (self.db.hideInCombat and "hide" or "cached timers") ..
+    "; in combat: " .. tostring(self.inCombat) .. "; tracker enabled: " .. tostring(self.db.visible) ..
+    "; frame shown: " .. tostring(self.window and self.window:IsShown()))
   for _, key in ipairs({ "food", "bag", "camp", "tent" }) do
     local aura = self.state[key] or {}
     self:Print(key .. ": " .. (aura.active and (self:SafeString(aura.name) or "active") or "not detected") ..
@@ -374,6 +377,13 @@ function FG:Init()
     if FoodGuardianDB[key] == nil then FoodGuardianDB[key] = val end
   end
   self.db = FoodGuardianDB
+  -- Older builds recommended concealment to avoid protected-action errors.
+  -- Reset the inherited flag once now that combat uses cached timers.
+  -- Explicit choices made after this migration remain persistent.
+  if self.db.combatVisibilityVersion ~= 1 then
+    self.db.hideInCombat = false
+    self.db.combatVisibilityVersion = 1
+  end
   self.inCombat = type(InCombatLockdown) == "function" and InCombatLockdown() or false
   if not hadMode and previousCompact then self.db.mode = "compact" end
   if self.db.mode ~= "full" and self.db.mode ~= "compact" and self.db.mode ~= "icons" then
@@ -397,7 +407,7 @@ function FG:Init()
   if type(SlashCmdList) == "table" then
     SlashCmdList.FOODGUARDIAN = function(text) FG:Slash(text) end
   end
-  self:Print("v1.1b1 ready. /fg mode full|compact|icons; /fg settings for options.")
+  self:Print("v1.1b2 ready. /fg mode full|compact|icons; /fg settings for options.")
   self:ApplyCombatVisibility()
 end
 

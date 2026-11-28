@@ -74,6 +74,8 @@ C_Container={GetContainerNumSlots=function(bag) return bag==0 and 1 or 0 end,
  GetContainerItemCooldown=function() return 800,1200,1 end}
 
 UnitClass=function() return "Mage","MAGE" end
+-- Simulate a saved preference from the pre-cached-timer releases.
+FoodGuardianDB={hideInCombat=true}
 local fg={}
 for _, path in ipairs({"Core.lua","ClassBuffs.lua","Auras.lua","Inventory.lua","UI.lua","Settings.lua","Minimap.lua"}) do
   local f,err=loadfile(root.."/"..path);assert(f,err);f("FoodGuardian",fg)
@@ -81,7 +83,11 @@ end
 local bootstrap=created[1]
 bootstrap.scripts.OnEvent(bootstrap,"ADDON_LOADED","FoodGuardian")
 assert(fg.ready,"addon did not initialize")
-assert(fg.version=="1.1b1","incorrect version")
+assert(fg.db.hideInCombat==false and fg.db.combatVisibilityVersion==1,"legacy hide flag not migrated")
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
+assert(fg.window:IsShown(),"migrated tracker still hides in combat")
+bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
+assert(fg.version=="1.1b2","incorrect version")
 assert(fg.window and fg.settings and fg.minimap,"UI components not initialized")
 assert(fg.state.food.active and fg.state.bag.active and fg.state.camp.active and fg.state.tent.active,"auras not found")
 assert(fg.state.bag.stacks==3,"sleeping bag stacks not read")
@@ -353,6 +359,7 @@ bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
 now=2250
 fg:Refresh(true)
 assert(fg:ClassStatus("class_intellect")=="warning","cached class countdown failed")
+assert(fg.window:IsShown() and fg.classRows[1]:IsShown(),"class tracker hidden in cached combat mode")
 aura.HELPFUL[1].expirationTime=5000
 now=2301
 fg:Refresh(true)
@@ -368,3 +375,9 @@ fg.classDB.enabled=false
 fg:Refresh(true)
 assert(fg.window.height==60,"disabled class buffs changed original layout")
 print("Food Guardian class buff mock: PASS")
+
+-- A later deliberate hide preference is retained rather than reset on every login.
+fg.db.hideInCombat=true
+fg:Init()
+assert(fg.db.hideInCombat==true,"explicit combat preference lost on reload")
+print("Food Guardian combat preference migration: PASS")

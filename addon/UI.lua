@@ -252,7 +252,7 @@ function FG:CreateUI()
   frame.crest = crest
   frame.heading = font(header, 19, self.colors.bright, "Food Guardian")
   frame.heading:SetPoint("TOPLEFT", 50, -8)
-  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b1")
+  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b2")
   frame.subtitle:SetPoint("TOPLEFT", 51, -30)
 
   frame.closeButton = smallButton(header, 0, "Close tracker (reopen with /fg)", -10, function() FG:ToggleWindow() end)
