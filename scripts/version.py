@@ -35,13 +35,13 @@ def select():
     initial = current_version()
     if "b" not in initial:
         return initial
-    series = initial.split("b", 1)[0]
+    series, minimum_beta = initial.split("b", 1)
     pattern = re.compile(rf"^{PREFIX}{re.escape(series)}b([1-9][0-9]*)$")
     tags = git("tag", "--list", f"{PREFIX}{series}b*")
     current_commit = set(git("tag", "--points-at", "HEAD"))
     numbered = {tag: int(match.group(1)) for tag in tags if (match := pattern.fullmatch(tag))}
     at_head = [value for tag, value in numbered.items() if tag in current_commit]
-    number = max(at_head) if at_head else max(numbered.values(), default=0) + 1
+    number = max(at_head) if at_head else max(int(minimum_beta), max(numbered.values(), default=0) + 1)
     return f"{series}b{number}"
 
 def stamp(version):
