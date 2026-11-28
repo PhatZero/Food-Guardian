@@ -293,7 +293,7 @@ function FG:CreateUI()
   frame.crest = crest
   frame.heading = font(header, 19, self.colors.bright, "Food Guardian")
   frame.heading:SetPoint("TOPLEFT", 50, -8)
-  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b8")
+  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b9")
   frame.subtitle:SetPoint("TOPLEFT", 51, -30)
 
   frame.closeButton = smallButton(header, 0, "Close tracker (reopen with /fg)", -10, function() FG:ToggleWindow() end)
@@ -568,27 +568,6 @@ function FG:ApplyLayout()
   end
 end
 
-local function fitClassTitle(row,label)
-  if row.fittedName==label then return end
-  row.fittedName=label
-  local face=STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-  local size=10
-  local available=91
-  row.measure:SetText(label)
-  row.measure:SetFont(face,size,"OUTLINE")
-  local width=row.measure:GetStringWidth()
-  if type(width)=="number" and width>available then
-    size=math.max(8,math.floor(size*available/width*2)/2)
-    row.measure:SetFont(face,size,"OUTLINE")
-    width=row.measure:GetStringWidth()
-  end
-  local wraps=type(width)=="number" and width>available
-  row.title:SetFont(face,size,"OUTLINE")
-  if row.title.SetWordWrap then row.title:SetWordWrap(wraps) end
-  row.title:SetHeight(wraps and 22 or 14)
-  row.title:SetText(label)
-end
-
 local function newClassTile(fg)
   local row=CreateFrame("Button",nil,fg.window)
   row:SetFrameLevel(fg.window:GetFrameLevel()+3)
@@ -597,20 +576,14 @@ local function newClassTile(fg)
   bg:SetColorTexture(.035,.045,.060,.96)
   row.outline=makeOutline(row,1.5)
   row.icon=row:CreateTexture(nil,"ARTWORK")
-  row.icon:SetSize(28,28)
+  row.icon:SetSize(42,42)
   row.icon:SetPoint("LEFT",4,0)
-  row.title=fg.Font(row,10,fg.colors.ivory,"","LEFT")
-  row.title:SetPoint("TOPLEFT",row,"TOPLEFT",35,-5)
-  row.title:SetPoint("TOPRIGHT",row,"TOPRIGHT",-2,-5)
-  row.title:SetHeight(14)
-  if row.title.SetWordWrap then row.title:SetWordWrap(false) end
-  row.measure=fg.Font(row,10,fg.colors.ivory,"")
-  row.measure:Hide()
-  -- Match reference: name top-left, countdown bottom-right.
-  row.time=fg.Font(row,12,fg.colors.green,"","RIGHT")
-  row.time:SetPoint("BOTTOMLEFT",row,"BOTTOMLEFT",35,5)
-  row.time:SetPoint("BOTTOMRIGHT",row,"BOTTOMRIGHT",-7,5)
-  row.time:SetHeight(16)
+  -- Same icon-and-timer treatment as the original compact tiles.
+  -- Full buff names are available in the hover tooltip.
+  row.time=fg.Font(row,15,fg.colors.green,"","RIGHT")
+  row.time:SetPoint("LEFT",row,"LEFT",50,0)
+  row.time:SetPoint("RIGHT",row,"RIGHT",-6,0)
+  row.time:SetHeight(22)
   row:RegisterForClicks("LeftButtonUp","RightButtonUp","MiddleButtonUp")
   row:RegisterForDrag("LeftButton")
   row:SetScript("OnClick",function(_,mouse)
@@ -644,12 +617,12 @@ function FG:LayoutClassRows()
   self.classLayoutSignature=signature
   local width=mode=="full" and 414 or mode=="compact" and 402 or 174
   local base=mode=="full" and 390 or 60
-  -- All named class tiles have exactly the same width as a core compact tile.
+  -- All class timer tiles match the dimensions of a core compact tile.
   -- Center each incomplete row without stretching; wrap after three tiles.
   local columns=3
   local gap=mode=="icons" and 5 or 4
   local tileWidth=mode=="icons" and 51 or 128
-  local tileHeight=mode=="icons" and 51 or 46
+  local tileHeight=mode=="icons" and 51 or 50
   local top=mode=="full" and 365 or 60
   for i,d in ipairs(list) do
     local row=self.classRows[i]
@@ -663,11 +636,10 @@ function FG:LayoutClassRows()
     row:SetPoint("TOPLEFT",self.window,"TOPLEFT",startX+((i-1)%columns)*(tileWidth+gap),
       -top-line*(tileHeight+gap))
     row:SetSize(tileWidth,tileHeight)
-    local iconSize=mode=="icons" and 43 or 28
+    local iconSize=mode=="icons" and 45 or 42
     row.icon:SetSize(iconSize,iconSize)
     row.icon:ClearAllPoints()
     row.icon:SetPoint("LEFT",row,"LEFT",mode=="icons" and 4 or 4,0)
-    row.title:SetShown(mode~="icons")
     row.time:SetShown(mode~="icons")
     row:Show()
   end
@@ -688,8 +660,8 @@ function FG:UpdateUI()
       local a=self.classState[row.buffKey] or {}
       local status=self:ClassStatus(row.buffKey)
       local tint=status=="active" and self.colors.green or status=="warning" and self.colors.amber or status=="missing" and self.colors.red or self.colors.muted
-      if not self.inCombat then fitClassTitle(row,a.name or row.buffKey) end
-      row.time:SetText((status=="active" or status=="warning") and self:FormatTime(self:Remain(a)) or status:upper())
+      local label=(status=="active" or status=="warning") and self:FormatTime(self:Remain(a)) or status=="missing" and "NONE" or status=="unknown" and "?" or status:upper()
+      row.time:SetText(label)
       row.time:SetTextColor(tint[1],tint[2],tint[3],1)
       row.icon:SetTexture(a.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
       local flash=self.db.flash and (status=="warning" or status=="missing")

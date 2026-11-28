@@ -2,7 +2,7 @@
 ## Title: |cffffce75Food|r |cfffff5dbGuardian|r
 ## Notes: Food, Cozy Sleeping Bag, Camp Benefits, and Camp Tent and optional class buff tracker for WoW Forever.
 ## Author: PhatZero
-## Version: 1.1b8
+## Version: 1.1b9
 ## SavedVariables: FoodGuardianDB
 ## SavedVariablesPerCharacter: FoodGuardianCharDB
 ## X-Category: Buffs

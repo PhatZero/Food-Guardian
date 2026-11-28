@@ -1,3 +1,10 @@
+## 1.1b9 — Icon-and-timer class buffs
+
+- Remove inline class buff names from compact and expanded class tiles; retain full names in hover tooltips.
+- Match the core compact tiles with identical dimensions, larger icons, centered countdowns and consistent missing indicators.
+- Preserve centered rows, icon-only mode, complete borders and cached combat timers.
+- Update regression tests for matching tile geometry and tooltip-only names.
+
 ## 1.1b8 — Complete compact core borders
 
 - Apply the same explicit four-sided borders used by class buffs to food, sleeping bag and campfire tiles in compact and icon modes.
