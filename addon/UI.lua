@@ -252,7 +252,7 @@ function FG:CreateUI()
   frame.crest = crest
   frame.heading = font(header, 19, self.colors.bright, "Food Guardian")
   frame.heading:SetPoint("TOPLEFT", 50, -8)
-  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b2")
+  frame.subtitle = font(header, 9, self.colors.cyan, "FOREVER  ·  V1.1b3")
   frame.subtitle:SetPoint("TOPLEFT", 51, -30)
 
   frame.closeButton = smallButton(header, 0, "Close tracker (reopen with /fg)", -10, function() FG:ToggleWindow() end)
@@ -543,10 +543,14 @@ local function newClassTile(fg)
   row.icon:SetSize(28,28)
   row.icon:SetPoint("LEFT",4,0)
   row.title=fg.Font(row,10,fg.colors.ivory,"")
-  row.title:SetPoint("TOPLEFT",36,-4)
-  row.title:SetPoint("RIGHT",-4,0)
+  row.title:SetPoint("TOPLEFT",36,-5)
+  row.title:SetPoint("TOPRIGHT",-4,-5)
+  row.title:SetHeight(13)
+  if row.title.SetWordWrap then row.title:SetWordWrap(false) end
   row.time=fg.Font(row,12,fg.colors.green,"","RIGHT")
-  row.time:SetPoint("BOTTOMRIGHT",-5,4)
+  row.time:SetPoint("BOTTOMLEFT",36,5)
+  row.time:SetPoint("BOTTOMRIGHT",-5,5)
+  row.time:SetHeight(14)
   row:RegisterForClicks("LeftButtonUp","RightButtonUp","MiddleButtonUp")
   row:RegisterForDrag("LeftButton")
   row:SetScript("OnClick",function(_,mouse)
@@ -580,25 +584,36 @@ function FG:LayoutClassRows()
   self.classLayoutSignature=signature
   local width=mode=="full" and 414 or mode=="compact" and 402 or 174
   local base=mode=="full" and 390 or 60
-  local columns=mode=="icons" and 3 or 2
-  local tileWidth=mode=="icons" and 51 or math.floor((width-20)/2)
-  local tileHeight=mode=="icons" and 51 or 38
+  -- Match the core compact/icon tile widths; keep a uniform three-column grid.
+  -- Never stretch the final one or two tiles to fill an incomplete row.
+  local columns=3
+  local tileWidth=mode=="icons" and 51 or 128
+  local tileHeight=mode=="icons" and 51 or 50
+  local gap=mode=="icons" and 5 or 4
+  local top=mode=="full" and 365 or 59
   for i,d in ipairs(list) do
     local row=self.classRows[i]
     if not row then row=newClassTile(self); self.classRows[i]=row end
     row.buffKey=d.key
     row:ClearAllPoints()
-    row:SetPoint("TOPLEFT",self.window,"TOPLEFT",5+((i-1)%columns)*(tileWidth+5),
-      -(mode=="full" and 365 or 60)-math.floor((i-1)/columns)*(tileHeight+5))
+    local line=math.floor((i-1)/columns)
+    local count=math.min(columns,#list-line*columns)
+    local lineWidth=count*tileWidth+(count-1)*gap
+    local startX=math.floor((width-lineWidth)/2)
+    row:SetPoint("TOPLEFT",self.window,"TOPLEFT",startX+((i-1)%columns)*(tileWidth+gap),
+      -top-line*(tileHeight+gap))
     row:SetSize(tileWidth,tileHeight)
-    row.icon:SetSize(mode=="icons" and 43 or 28,mode=="icons" and 43 or 28)
+    local iconSize=mode=="icons" and 43 or 30
+    row.icon:SetSize(iconSize,iconSize)
     row.title:SetShown(mode~="icons")
     row.time:SetShown(mode~="icons")
     row:Show()
   end
   for i=#list+1,#self.classRows do self.classRows[i]:Hide(); self.classRows[i].buffKey=nil end
-  local extra=math.ceil(#list/columns)*(tileHeight+5)
-  self.window:SetSize(width,base+extra+(#list>0 and 5 or 0))
+  local lines=math.ceil(#list/columns)
+  local bottom=mode=="full" and 30 or 5
+  local height=lines>0 and (top+lines*tileHeight+(lines-1)*gap+bottom) or base
+  self.window:SetSize(width,height)
 end
 
 local baseUpdate=FG.UpdateUI

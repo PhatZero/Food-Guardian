@@ -1,3 +1,10 @@
+## 1.1b3 — Uniform class buff layout
+
+- Use three consistently sized class buff tiles per row, matching compact and icon widths.
+- Center incomplete rows without stretching; wrap further selections automatically.
+- Constrain title and timer text to separate lines; preserve the original tracker dimensions when disabled.
+- Add layout regression coverage for zero through eight buffs in all three modes.
+
 ## 1.1b2 — Combat visibility fix
 
 - Migrate inherited hide-in-combat settings once to visible cached timers, preserving later explicit choices.
