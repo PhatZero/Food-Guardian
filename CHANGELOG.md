@@ -1,3 +1,10 @@
+## 1.1.0 — Class buff tracking (stable)
+
+- Promote the in-game QA-approved 1.1b9 build to a stable release, with no gameplay changes.
+- Optional class, external, custom and weapon buffs; per-character selections and configurable warnings.
+- Matching icon-and-timer tiles, hover names, centered rows and complete borders.
+- Combat-safe cached timers and automatic post-combat synchronization.
+
 ## 1.1b9 — Icon-and-timer class buffs
 
 - Remove inline class buff names from compact and expanded class tiles; retain full names in hover tooltips.

@@ -33,7 +33,7 @@ Source is stored in `addon/` and GitHub Actions packages the same installable `F
 ### Combat-safe countdowns (1.0.3)
 New installations keep the tracker visible in combat. Existing users can run `/fg combat off` outside combat to enable it, or `/fg combat on` to hide it. Timers use the last readable aura snapshot and resynchronize when combat ends; changes during combat may not appear immediately. Configuration and minimap refreshes pause in combat.
 
-## Optional class buffs (1.1 beta)
+## Optional class buffs (1.1.0)
 Open `/fg settings` → **Class Buffs**. Enable tracking and select individual presets or grouped alternatives for your character; external buffs and temporary weapon enhancements are also optional. Custom helpful auras can be entered by exact name or ID (up to eight), or via `/fg buffadd` and `/fg buffremove`. Preferences are per character. Class timers use the existing out-of-combat snapshot and refresh when combat ends. Weapon enhancements are per hand, not specific poison types. Preset aura names and legacy spellbook support require live Forever QA.
 
 ### Combat visibility upgrade

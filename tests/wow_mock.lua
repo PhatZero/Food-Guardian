@@ -94,7 +94,7 @@ assert(fg.db.hideInCombat==false and fg.db.combatVisibilityVersion==1,"legacy hi
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_DISABLED")
 assert(fg.window:IsShown(),"migrated tracker still hides in combat")
 bootstrap.scripts.OnEvent(bootstrap,"PLAYER_REGEN_ENABLED")
-assert(fg.version=="1.1b9","incorrect version")
+assert(fg.version=="1.1.0","incorrect version")
 assert(fg.window and fg.settings and fg.minimap,"UI components not initialized")
 assert(fg.state.food.active and fg.state.bag.active and fg.state.camp.active and fg.state.tent.active,"auras not found")
 assert(fg.state.bag.stacks==3,"sleeping bag stacks not read")
